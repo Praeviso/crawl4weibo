@@ -8,9 +8,10 @@ import random
 import time
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
-from urllib.parse import quote
 
 import requests
+
+from .proxy_parsers import default_proxy_parser
 
 
 @dataclass
@@ -20,8 +21,8 @@ class ProxyPoolConfig:
     proxy_api_url: Optional[str] = None
     """Dynamic proxy API URL"""
 
-    proxy_api_parser: Optional[Callable[[dict], str]] = None
-    """Custom proxy API response parser function"""
+    proxy_api_parser: Optional[Callable[[dict], List[str]]] = None
+    """Custom proxy API response parser function, should return list of proxy URLs"""
 
     dynamic_proxy_ttl: int = 300
     """Dynamic proxy expiration time (seconds), default 300 seconds (5 minutes)"""
@@ -50,99 +51,6 @@ class ProxyPool:
         self._proxy_pool: List[Tuple[str, float]] = []
         self._current_index = 0
 
-    def _default_api_parser(self, response_data) -> str:
-        """
-        Default proxy API response parser
-
-        Supports the following formats:
-        - Plain text: "218.95.37.11:25152" or multiple lines
-        - Plain text with auth: "218.95.37.11:25152:username:password"
-        - JSON: {"ip": "1.2.3.4", "port": "8080"}
-        - JSON: {"proxy": "http://1.2.3.4:8080"}
-        - JSON: {"data": {"ip": "1.2.3.4", "port": 8080}}
-        - JSON: {"data": [{"ip": "1.2.3.4", "port": 8080}]}
-        - JSON: {"data": ["218.95.37.11:25152:username:password", ...]}
-        - JSON with auth:
-          {"ip": "...", "port": "...", "username": "...", "password": "..."}
-        """
-        if isinstance(response_data, str):
-            lines = [line.strip() for line in response_data.split("\n") if line.strip()]
-            if not lines:
-                raise ValueError("Proxy API returned empty text response")
-
-            proxy_str = lines[0]
-
-            if proxy_str.startswith(("http://", "https://", "socks4://", "socks5://")):
-                parts = proxy_str.split("://", 1)
-                if len(parts) == 2 and ":" in parts[1]:
-                    return proxy_str
-                else:
-                    raise ValueError(f"Invalid proxy format: {proxy_str}")
-            else:
-                if ":" not in proxy_str:
-                    raise ValueError(
-                        f"Invalid proxy format (missing port): {proxy_str}"
-                    )
-
-                parts = proxy_str.split(":")
-
-                # Validate port number
-                def validate_port(port_str: str):
-                    try:
-                        port_num = int(port_str)
-                    except ValueError:
-                        raise ValueError(
-                            f"Invalid proxy format (invalid port): {proxy_str}"
-                        )
-
-                    if not (1 <= port_num <= 65535):
-                        raise ValueError(f"Invalid port number: {port_str}")
-
-                if len(parts) == 4:
-                    host, port, username, password = parts
-                    validate_port(port)
-                    encoded_user = quote(username, safe="")
-                    encoded_pass = quote(password, safe="")
-                    return f"http://{encoded_user}:{encoded_pass}@{host}:{port}"
-
-                elif len(parts) == 2:
-                    host, port = parts
-                    validate_port(port)
-                    return f"http://{proxy_str}"
-                else:
-                    raise ValueError(f"Invalid proxy format: {proxy_str}")
-
-        if isinstance(response_data, dict):
-            if "proxy" in response_data:
-                return response_data["proxy"]
-
-            data = response_data.get("data", response_data)
-
-            if isinstance(data, list):
-                if not data:
-                    raise ValueError(
-                        f"Proxy API returned empty data array: {response_data}"
-                    )
-                first_item = data[0]
-
-                if isinstance(first_item, str):
-                    return self._default_api_parser(first_item)
-
-                data = first_item
-
-            if isinstance(data, dict) and "ip" in data and "port" in data:
-                ip = data["ip"]
-                port = data["port"]
-                if "username" in data and "password" in data:
-                    username = data["username"]
-                    password = data["password"]
-                    encoded_user = quote(username, safe="")
-                    encoded_pass = quote(password, safe="")
-                    return f"http://{encoded_user}:{encoded_pass}@{ip}:{port}"
-                return f"http://{ip}:{port}"
-
-        raise ValueError(f"Unable to parse proxy API response: {response_data}")
-
     def add_proxy(self, proxy_url: str, ttl: Optional[int] = None):
         """
         Manually add static proxy to proxy pool
@@ -154,10 +62,15 @@ class ProxyPool:
         expire_time = time.time() + ttl if ttl is not None else float("inf")
         self._proxy_pool.append((proxy_url, expire_time))
 
-    def _fetch_proxy_from_api(self) -> Optional[str]:
-        """Fetch a new proxy URL from proxy API"""
+    def _fetch_proxies_from_api(self) -> List[str]:
+        """
+        Fetch proxy URLs from proxy API
+
+        Returns:
+            List of proxy URLs, empty list if fetch failed
+        """
         if not self.config.proxy_api_url:
-            return None
+            return []
 
         try:
             response = requests.get(self.config.proxy_api_url, timeout=5)
@@ -168,10 +81,10 @@ class ProxyPool:
             except ValueError:
                 proxy_data = response.text
 
-            parser = self.config.proxy_api_parser or self._default_api_parser
+            parser = self.config.proxy_api_parser or default_proxy_parser
             return parser(proxy_data)
         except Exception:
-            return None
+            return []
 
     def _clean_expired_proxies(self):
         """Clean up expired proxies"""
@@ -192,8 +105,8 @@ class ProxyPool:
 
         Strategy:
         1. Clean up expired proxies
-        2. If proxy pool is not full, try to fetch new proxy from dynamic
-           API and add to pool
+        2. If proxy pool is not full, try to fetch new proxies from dynamic
+           API and add to pool (may add multiple proxies at once)
         3. If proxy pool is full, select proxy from pool based on strategy
            (random/round-robin)
         4. If pool is empty and cannot fetch new proxy, return None
@@ -205,9 +118,11 @@ class ProxyPool:
         self._clean_expired_proxies()
 
         if not self._is_pool_full():
-            proxy_url = self._fetch_proxy_from_api()
-            if proxy_url:
-                self.add_proxy(proxy_url, ttl=self.config.dynamic_proxy_ttl)
+            proxy_urls = self._fetch_proxies_from_api()
+            if proxy_urls:
+                remaining_slots = self.config.pool_size - len(self._proxy_pool)
+                for proxy_url in proxy_urls[:remaining_slots]:
+                    self.add_proxy(proxy_url, ttl=self.config.dynamic_proxy_ttl)
 
         if self._proxy_pool:
             if self.config.fetch_strategy == "random":

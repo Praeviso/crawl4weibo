@@ -269,7 +269,7 @@ class TestProxyPool:
         def custom_parser(data):
             host = data["result"]["host"]
             port = data["result"]["port"]
-            return f"http://{host}:{port}"
+            return [f"http://{host}:{port}"]
 
         config = ProxyPoolConfig(
             proxy_api_url=proxy_api_url, proxy_api_parser=custom_parser
@@ -389,8 +389,14 @@ class TestProxyPool:
         proxy = pool.get_proxy()
 
         assert proxy is not None
-        assert proxy["http"] == "http://218.95.37.11:25152"
-        assert proxy["https"] == "http://218.95.37.11:25152"
+        # All 3 proxies should be in pool
+        assert pool.get_pool_size() == 3
+        # Proxy should be one of the three
+        assert proxy["http"] in [
+            "http://218.95.37.11:25152",
+            "http://219.150.218.21:25089",
+            "http://218.95.37.161:25015",
+        ]
 
     @responses.activate
     def test_get_proxy_plain_text_single_line(self):
@@ -429,7 +435,7 @@ class TestProxyPool:
 
     @responses.activate
     def test_get_proxy_plain_text_multiline_with_auth(self):
-        """Test parsing multiple lines with auth (takes first line)"""
+        """Test parsing multiple lines with auth"""
         proxy_api_url = "http://api.proxy.com/get"
         responses.add(
             responses.GET,
@@ -443,8 +449,13 @@ class TestProxyPool:
         proxy = pool.get_proxy()
 
         assert proxy is not None
-        assert proxy["http"] == "http://user1:pass1@218.95.37.11:25152"
-        assert proxy["https"] == "http://user1:pass1@218.95.37.11:25152"
+        # Both proxies should be in pool
+        assert pool.get_pool_size() == 2
+        # Proxy should be one of the two
+        assert proxy["http"] in [
+            "http://user1:pass1@218.95.37.11:25152",
+            "http://user2:pass2@219.150.218.21:25089",
+        ]
 
     @responses.activate
     def test_get_proxy_json_array_with_colon_format(self):
@@ -468,8 +479,14 @@ class TestProxyPool:
         proxy = pool.get_proxy()
 
         assert proxy is not None
-        assert proxy["http"] == "http://username:password@218.95.37.11:25152"
-        assert proxy["https"] == "http://username:password@218.95.37.11:25152"
+        # All 3 proxies should be in pool
+        assert pool.get_pool_size() == 3
+        # Proxy should be one of the three
+        assert proxy["http"] in [
+            "http://username:password@218.95.37.11:25152",
+            "http://username:password@219.150.218.21:25089",
+            "http://username:password@218.95.37.161:25015",
+        ]
 
     @responses.activate
     def test_get_proxy_json_array_with_colon_format_no_auth(self):
@@ -487,8 +504,10 @@ class TestProxyPool:
         proxy = pool.get_proxy()
 
         assert proxy is not None
-        assert proxy["http"] == "http://10.20.30.40:8080"
-        assert proxy["https"] == "http://10.20.30.40:8080"
+        # Both proxies should be in pool
+        assert pool.get_pool_size() == 2
+        # Proxy should be one of the two
+        assert proxy["http"] in ["http://10.20.30.40:8080", "http://50.60.70.80:9090"]
 
     @responses.activate
     def test_get_proxy_with_special_chars_in_credentials(self):
@@ -536,3 +555,136 @@ class TestProxyPool:
         assert proxy is not None
         assert proxy["http"] == "http://user%40test:p%40ss%2Fw0rd@10.20.30.40:9090"
         assert proxy["https"] == "http://user%40test:p%40ss%2Fw0rd@10.20.30.40:9090"
+
+    @responses.activate
+    def test_batch_proxy_fetch_multiple_proxies(self):
+        """Test fetching multiple proxies from API in one call"""
+        proxy_api_url = "http://api.proxy.com/get"
+        responses.add(
+            responses.GET,
+            proxy_api_url,
+            json={
+                "data": [
+                    {"ip": "1.2.3.4", "port": "8080"},
+                    {"ip": "5.6.7.8", "port": "9090"},
+                    {"ip": "10.11.12.13", "port": "3128"},
+                ]
+            },
+            status=200,
+        )
+
+        config = ProxyPoolConfig(proxy_api_url=proxy_api_url, pool_size=5)
+        pool = ProxyPool(config=config)
+
+        # First call should fetch all 3 proxies
+        proxy = pool.get_proxy()
+        assert proxy is not None
+        assert pool.get_pool_size() == 3
+
+    @responses.activate
+    def test_batch_proxy_respects_pool_size(self):
+        """Test batch fetch respects pool size limit"""
+        proxy_api_url = "http://api.proxy.com/get"
+        responses.add(
+            responses.GET,
+            proxy_api_url,
+            json={
+                "data": [
+                    {"ip": "1.2.3.4", "port": "8080"},
+                    {"ip": "5.6.7.8", "port": "9090"},
+                    {"ip": "10.11.12.13", "port": "3128"},
+                    {"ip": "20.21.22.23", "port": "8888"},
+                    {"ip": "30.31.32.33", "port": "7777"},
+                ]
+            },
+            status=200,
+        )
+
+        config = ProxyPoolConfig(proxy_api_url=proxy_api_url, pool_size=3)
+        pool = ProxyPool(config=config)
+
+        # Should only add first 3 proxies due to pool size limit
+        proxy = pool.get_proxy()
+        assert proxy is not None
+        assert pool.get_pool_size() == 3
+
+    @responses.activate
+    def test_batch_proxy_partial_fill(self):
+        """Test batch fetch partially fills pool when already has proxies"""
+        proxy_api_url = "http://api.proxy.com/get"
+        responses.add(
+            responses.GET,
+            proxy_api_url,
+            json={
+                "data": [
+                    {"ip": "10.11.12.13", "port": "3128"},
+                    {"ip": "20.21.22.23", "port": "8888"},
+                    {"ip": "30.31.32.33", "port": "7777"},
+                ]
+            },
+            status=200,
+        )
+
+        config = ProxyPoolConfig(proxy_api_url=proxy_api_url, pool_size=4)
+        pool = ProxyPool(config=config)
+
+        # Add 2 static proxies
+        pool.add_proxy("http://1.2.3.4:8080")
+        pool.add_proxy("http://5.6.7.8:9090")
+        assert pool.get_pool_size() == 2
+
+        # Should only add 2 more to reach pool size of 4
+        proxy = pool.get_proxy()
+        assert proxy is not None
+        assert pool.get_pool_size() == 4
+
+    @responses.activate
+    def test_batch_proxy_plain_text_multiple_lines(self):
+        """Test batch parsing of multiple plain text proxies"""
+        proxy_api_url = "http://api.proxy.com/get"
+        responses.add(
+            responses.GET,
+            proxy_api_url,
+            body="1.2.3.4:8080\n5.6.7.8:9090\n10.11.12.13:3128",
+            status=200,
+        )
+
+        config = ProxyPoolConfig(proxy_api_url=proxy_api_url, pool_size=5)
+        pool = ProxyPool(config=config)
+
+        proxy = pool.get_proxy()
+        assert proxy is not None
+        # Should have all 3 proxies in pool
+        assert pool.get_pool_size() == 3
+
+    @responses.activate
+    def test_custom_parser_returns_multiple_proxies(self):
+        """Test custom parser can return multiple proxies"""
+        proxy_api_url = "http://api.proxy.com/get"
+        responses.add(
+            responses.GET,
+            proxy_api_url,
+            json={
+                "proxies": [
+                    {"host": "1.1.1.1", "port": "3128"},
+                    {"host": "2.2.2.2", "port": "8080"},
+                ]
+            },
+            status=200,
+        )
+
+        def custom_parser(data):
+            proxies = data["proxies"]
+            return [f"http://{p['host']}:{p['port']}" for p in proxies]
+
+        config = ProxyPoolConfig(
+            proxy_api_url=proxy_api_url,
+            proxy_api_parser=custom_parser,
+            pool_size=5,
+        )
+        pool = ProxyPool(config=config)
+        proxy = pool.get_proxy()
+
+        assert proxy is not None
+        assert pool.get_pool_size() == 2
+
