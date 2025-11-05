@@ -46,8 +46,6 @@ class ImageDownloader:
         self.delay_range = delay_range
         self.proxy_pool = proxy_pool
 
-        self.download_dir.mkdir(parents=True, exist_ok=True)
-
         if (
             not hasattr(self.session, "headers")
             or "User-Agent" not in self.session.headers
@@ -84,6 +82,8 @@ class ImageDownloader:
             return None
 
         try:
+            self.download_dir.mkdir(parents=True, exist_ok=True)
+
             if subdir:
                 save_dir = self.download_dir / subdir
                 save_dir.mkdir(parents=True, exist_ok=True)
