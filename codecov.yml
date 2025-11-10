@@ -5,10 +5,6 @@ coverage:
         target: auto 
         threshold: 5
         base: auto 
-        flags: 
-          - unit
-          - integration
-          - slow
         paths: 
           - "crawl4weibo"
        # advanced settings
