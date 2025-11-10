@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:   # default is the status check's name, not default settings
+        target: auto 
+        threshold: 5
+        base: auto 
+        flags: 
+          - unit
+          - integration
+          - slow
+        paths: 
+          - "crawl4weibo"
+       # advanced settings
+        branches: 
+          - main
+        if_ci_failed: error #success, failure, error, ignore
+        informational: false
+        only_pulls: false
