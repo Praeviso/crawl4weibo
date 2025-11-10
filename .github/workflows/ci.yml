@@ -40,11 +40,11 @@ jobs:
         uv run pytest tests/ --cov=crawl4weibo --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.xml
-        flags: unittests
+        files: ./coverage.xml
         name: codecov-umbrella
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     needs: test
