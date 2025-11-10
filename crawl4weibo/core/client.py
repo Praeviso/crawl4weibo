@@ -386,6 +386,68 @@ class WeiboClient:
         self.logger.info(f"Found {len(posts)} posts")
         return posts
 
+    def search_posts_by_count(
+        self, query: str, count: int, max_pages: int = 50, use_proxy: bool = True
+    ) -> List[Post]:
+        """
+        Search for posts by keyword with automatic pagination until
+        reaching specified count
+
+        Args:
+            query: Search keyword
+            count: Desired number of posts to retrieve
+            max_pages: Maximum number of pages to fetch (safety limit),
+                default 50
+            use_proxy: Whether to use proxy, default True
+
+        Returns:
+            List of Post objects (may be fewer than count if no more
+            results available)
+        """
+        all_posts = []
+        page = 1
+
+        self.logger.info(
+            f"Starting search for '{query}', target count: {count}, "
+            f"max pages: {max_pages}"
+        )
+
+        while len(all_posts) < count and page <= max_pages:
+            try:
+                posts = self.search_posts(query, page=page, use_proxy=use_proxy)
+
+                if not posts:
+                    self.logger.info(
+                        f"No more posts found at page {page}, stopping pagination"
+                    )
+                    break
+
+                all_posts.extend(posts)
+                self.logger.info(
+                    f"Page {page}: fetched {len(posts)} posts, "
+                    f"total: {len(all_posts)}/{count}"
+                )
+
+                if len(all_posts) >= count:
+                    break
+
+                page += 1
+
+                if page <= max_pages:
+                    time.sleep(random.uniform(2, 4))
+
+            except Exception as e:
+                self.logger.error(f"Error fetching page {page}: {e}")
+                break
+
+        result = all_posts[:count]
+        self.logger.info(
+            f"Search completed for '{query}': returned {len(result)} posts "
+            f"(fetched {len(all_posts)} total from {page} pages)"
+        )
+
+        return result
+
     def download_post_images(
         self,
         post: Post,

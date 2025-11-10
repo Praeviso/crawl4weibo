@@ -50,7 +50,7 @@ def main():
             print(f"  - {user.screen_name} (Followers: {user.followers_count})")
 
         print("\nSearching posts...")
-        posts = client.search_posts("人工智能", page=1)
+        posts = client.search_posts_by_count("人工智能", count=40)
         for post in posts:
             print(f"  - {post.text[:50]}...")
 
