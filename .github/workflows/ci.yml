@@ -44,6 +44,7 @@ jobs:
       with:
         files: ./coverage.xml
         name: codecov-umbrella
+        flags: py-${{ matrix.python-version }}
         token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
