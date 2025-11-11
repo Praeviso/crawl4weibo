@@ -33,6 +33,11 @@ class ProxyPoolConfig:
     fetch_strategy: str = "random"
     """Proxy fetch strategy: 'random' or 'round_robin', default random"""
 
+    use_once_proxy: bool = False
+    """Use one-time proxy mode: fetch fresh proxy for each request, no pooling.
+    When enabled, proxies are used once and discarded, ideal for providers
+    that give single-use IPs"""
+
 
 class ProxyPool:
     """Proxy pool manager, supports unified management of dynamic and static proxies"""
@@ -46,10 +51,9 @@ class ProxyPool:
                 default configuration
         """
         self.config = config or ProxyPoolConfig()
-
-        # Proxy pool: List[(proxy_url, expire_time)]
         self._proxy_pool: List[Tuple[str, float]] = []
         self._current_index = 0
+        self._once_mode_buffer: List[str] = []
 
     def add_proxy(self, proxy_url: str, ttl: Optional[int] = None):
         """
@@ -103,7 +107,12 @@ class ProxyPool:
         """
         Get an available proxy
 
-        Strategy:
+        Strategy (one-time mode):
+        - Uses a buffer to store batch-fetched proxies
+        - Returns proxies from buffer one by one (FIFO)
+        - Fetches new batch from API when buffer is empty
+
+        Strategy (pooling mode):
         1. Clean up expired proxies
         2. If proxy pool is not full, try to fetch new proxies from dynamic
            API and add to pool (may add multiple proxies at once)
@@ -115,6 +124,17 @@ class ProxyPool:
             Proxy dictionary, format: {'http': 'http://...', 'https': 'http://...'}
             Returns None if no proxy is available
         """
+        if self.config.use_once_proxy:
+            if not self._once_mode_buffer:
+                proxy_urls = self._fetch_proxies_from_api()
+                if proxy_urls:
+                    self._once_mode_buffer.extend(proxy_urls)
+
+            if self._once_mode_buffer:
+                proxy_url = self._once_mode_buffer.pop(0)
+                return {"http": proxy_url, "https": proxy_url}
+            return None
+
         self._clean_expired_proxies()
 
         if not self._is_pool_full():
@@ -145,9 +165,10 @@ class ProxyPool:
         return len(self._proxy_pool)
 
     def clear_pool(self):
-        """Clear proxy pool"""
+        """Clear proxy pool and once mode buffer"""
         self._proxy_pool = []
         self._current_index = 0
+        self._once_mode_buffer = []
 
     def is_enabled(self) -> bool:
         """
@@ -156,6 +177,9 @@ class ProxyPool:
         Returns:
             True if dynamic API is configured or there are proxies in the pool
         """
+        if self.config.use_once_proxy:
+            return bool(self.config.proxy_api_url)
+
         self._clean_expired_proxies()
         return bool(self.config.proxy_api_url or self._proxy_pool)
 
@@ -167,3 +191,12 @@ class ProxyPool:
             Maximum proxy pool capacity
         """
         return self.config.pool_size
+
+    def get_once_buffer_size(self) -> int:
+        """
+        Get current once mode buffer size (only relevant in once mode)
+
+        Returns:
+            Number of proxies remaining in once mode buffer
+        """
+        return len(self._once_mode_buffer)

@@ -101,7 +101,7 @@ python examples/download_images_example.py
 ```python
 from crawl4weibo import WeiboClient
 
-# Method 1: Use dynamic proxy API
+# Method 1: Use dynamic proxy API (pooling mode - default)
 client = WeiboClient(
     proxy_api_url="http://api.proxy.com/get?format=json",
     dynamic_proxy_ttl=300,      # Dynamic proxy TTL in seconds
@@ -109,21 +109,28 @@ client = WeiboClient(
     proxy_fetch_strategy="random"  # random or round_robin
 )
 
-# Method 2: Manually add static proxies
+# Method 2: One-time proxy mode (for single-use IP providers)
+client = WeiboClient(
+    proxy_api_url="http://api.proxy.com/get",
+    use_once_proxy=True,
+)
+# Efficient: Uses all returned IPs before fetching new batch
+
+# Method 3: Manually add static proxies
 client = WeiboClient()
 client.add_proxy("http://1.2.3.4:8080", ttl=600)  # With TTL
 client.add_proxy("http://5.6.7.8:8080")  # Never expires
 
-# Method 3: Mix dynamic and static proxies
+# Method 4: Mix dynamic and static proxies
 client = WeiboClient(
     proxy_api_url="http://api.proxy.com/get",
     proxy_pool_size=20
 )
 client.add_proxy("http://1.2.3.4:8080", ttl=None)
 
-# Method 4: Custom parser (adapt to different proxy providers)
+# Method 5: Custom parser (adapt to different proxy providers)
 def custom_parser(data):
-    return f"http://{data['result']['ip']}:{data['result']['port']}"
+    return [f"http://{data['result']['ip']}:{data['result']['port']}"]
 
 client = WeiboClient(
     proxy_api_url="http://custom-api.com/proxy",

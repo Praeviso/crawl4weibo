@@ -34,6 +34,7 @@ class WeiboClient:
         dynamic_proxy_ttl: int = 300,
         proxy_pool_size: int = 10,
         proxy_fetch_strategy: str = "random",
+        use_once_proxy: bool = False,
     ):
         """
         Initialize Weibo client
@@ -52,6 +53,9 @@ class WeiboClient:
             proxy_pool_size: Proxy pool capacity, default 10
             proxy_fetch_strategy: Proxy fetch strategy, 'random' or
                 'round_robin', default random
+            use_once_proxy: Use one-time proxy mode - fetch fresh proxy
+                for each request without pooling, ideal for single-use IP
+                providers. Default False (uses pooling mode)
         """
         self.logger = setup_logger(
             level=getattr(__import__("logging"), log_level.upper()), log_file=log_file
@@ -87,6 +91,7 @@ class WeiboClient:
             dynamic_proxy_ttl=dynamic_proxy_ttl,
             pool_size=proxy_pool_size,
             fetch_strategy=proxy_fetch_strategy,
+            use_once_proxy=use_once_proxy,
         )
         self.proxy_pool = ProxyPool(config=proxy_config)
 
@@ -98,10 +103,17 @@ class WeiboClient:
         )
 
         if proxy_api_url:
+            proxy_mode = "one-time" if use_once_proxy else "pooling"
             self.logger.info(
-                f"Proxy pool enabled (API: {proxy_api_url}, "
-                f"Capacity: {proxy_pool_size}, TTL: {dynamic_proxy_ttl}s, "
-                f"Strategy: {proxy_fetch_strategy})"
+                f"Proxy enabled in {proxy_mode} mode "
+                f"(API: {proxy_api_url}"
+                + (
+                    ""
+                    if use_once_proxy
+                    else f", Capacity: {proxy_pool_size}, TTL: {dynamic_proxy_ttl}s, "
+                    f"Strategy: {proxy_fetch_strategy}"
+                )
+                + ")"
             )
 
         self.logger.info("WeiboClient initialized successfully")
@@ -145,6 +157,13 @@ class WeiboClient:
         Returns:
             Response JSON data
         """
+        is_once_proxy = (
+            use_proxy
+            and self.proxy_pool
+            and self.proxy_pool.is_enabled()
+            and self.proxy_pool.config.use_once_proxy
+        )
+
         for attempt in range(1, max_retries + 1):
             proxies = None
             using_proxy = False
@@ -168,9 +187,13 @@ class WeiboClient:
                     return response.json()
                 elif response.status_code == 432:
                     if attempt < max_retries:
-                        # When using proxy, wait shorter time as dynamic proxy
-                        # rarely gets IP banned, usually just network instability
-                        if using_proxy:
+                        if is_once_proxy:
+                            self.logger.warning(
+                                "Encountered 432 error with one-time proxy, "
+                                "retrying immediately with fresh IP..."
+                            )
+                            continue
+                        elif using_proxy:
                             sleep_time = random.uniform(0.5, 1.5)
                         else:
                             sleep_time = random.uniform(4, 7)
@@ -187,9 +210,13 @@ class WeiboClient:
 
             except requests.exceptions.RequestException as e:
                 if attempt < max_retries:
-                    # When using proxy, wait shorter time for faster retry on
-                    # network instability
-                    if using_proxy:
+                    if is_once_proxy:
+                        self.logger.warning(
+                            f"Request failed with one-time proxy, "
+                            f"retrying immediately with fresh IP: {e}"
+                        )
+                        continue
+                    elif using_proxy:
                         sleep_time = random.uniform(0.5, 1.5)
                     else:
                         sleep_time = random.uniform(2, 5)

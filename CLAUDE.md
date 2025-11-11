@@ -70,10 +70,18 @@ crawl4weibo/
    - Extracts pagination info and metadata
 
 3. **ProxyPool** (utils/proxy.py) - Proxy management
-   - Supports dynamic proxy APIs (fetches multiple proxies per call)
-   - Supports static proxies with optional TTL
-   - Two fetch strategies: `random` or `round_robin`
-   - Automatically cleans expired proxies
+   - Supports two modes: **pooling** (default) and **one-time**
+   - **Pooling mode**: Caches proxies with TTL, reuses them across requests
+     - Supports dynamic proxy APIs (fetches multiple proxies per call)
+     - Supports static proxies with optional TTL
+     - Two fetch strategies: `random` or `round_robin`
+     - Automatically cleans expired proxies
+   - **One-time mode** (`use_once_proxy=True`): Fetches fresh proxy for each request
+     - Ideal for single-use IP providers
+     - Uses internal buffer to efficiently consume batch API responses
+     - No pooling or caching beyond current batch
+     - Immediate retry on failure (no wait needed)
+     - Cost-efficient: uses all proxies from batch before fetching new batch
    - Parser architecture: `proxy_parsers.py` contains modular format-specific parsers
 
 4. **Exception Hierarchy** (exceptions/base.py)
@@ -87,17 +95,32 @@ crawl4weibo/
 ### Key Design Patterns
 
 **Proxy Pool Architecture**
-- Custom parsers must return `List[str]` (not single string)
+- Supports two operational modes via `use_once_proxy` parameter:
+  - **Pooling mode** (default, `use_once_proxy=False`):
+    - Caches proxies in memory with TTL management
+    - Reuses proxies across multiple requests
+    - Batch-fetches proxies when pool not full
+    - Custom parsers must return `List[str]` (not single string)
+    - Respects `pool_size` limit when adding proxies
+  - **One-time mode** (`use_once_proxy=True`):
+    - Fetches fresh proxies from API as needed
+    - Uses internal buffer (FIFO queue) to store batch responses
+    - Consumes all proxies from buffer before making new API call
+    - Ideal for providers that charge per IP count
+    - Example: API returns 10 IPs → uses all 10 before next API call
+    - No pooling beyond current batch
 - Default parsers in `proxy_parsers.py` support:
   - Plain text: single/multiple lines, with/without auth
   - JSON: various nested formats (see test cases for examples)
-- Pool automatically batch-fetches proxies when not full
-- Respects `pool_size` limit when adding proxies
 
 **Retry Strategy**
 - Exponential backoff in `WeiboClient._request()`
 - Max retries configurable (default 3)
 - Special handling for 432 status codes (anti-scraping)
+- Retry wait times vary by proxy mode:
+  - **One-time proxy mode**: No wait (immediate retry with fresh IP)
+  - **Pooled proxy mode**: 0.5-1.5s wait
+  - **No proxy mode**: 2-7s wait
 
 **Model Design**
 - Dataclasses in `models/` are lightweight
@@ -113,6 +136,7 @@ crawl4weibo/
   - Test both single and batch proxy responses
   - Verify pool size limits are respected
   - Test custom parser returns `List[str]`
+  - Test both pooling and one-time proxy modes
 
 ## Common Tasks
 
@@ -137,6 +161,10 @@ The retry logic is in `WeiboClient._request()`:
 - Handles network errors and rate limits
 - Uses exponential backoff with jitter
 - Special case: 432 status triggers longer delays
+- Three wait strategies based on proxy mode:
+  1. One-time proxy: immediate retry (fresh IP each time)
+  2. Pooled proxy: short wait (0.5-1.5s)
+  3. No proxy: longer wait (2-7s)
 
 ## Code Style
 
