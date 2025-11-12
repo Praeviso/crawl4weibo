@@ -167,11 +167,13 @@ class WeiboClient:
         for attempt in range(1, max_retries + 1):
             proxies = None
             using_proxy = False
+            proxy_url = None
             if use_proxy and self.proxy_pool and self.proxy_pool.is_enabled():
                 proxies = self.proxy_pool.get_proxy()
                 if proxies:
                     using_proxy = True
-                    self.logger.debug(f"Using proxy: {proxies.get('http', 'N/A')}")
+                    proxy_url = proxies.get("http")
+                    self.logger.debug(f"Using proxy: {proxy_url}")
                 else:
                     self.logger.warning(
                         "Proxy pool failed to get available proxy, "
@@ -186,6 +188,16 @@ class WeiboClient:
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 432:
+                    if using_proxy and proxy_url and not is_once_proxy:
+                        if self.proxy_pool.remove_proxy(proxy_url):
+                            self.logger.warning(
+                                f"Proxy {proxy_url} returned 432, removed from pool"
+                            )
+                        else:
+                            self.logger.debug(
+                                f"Failed to remove proxy {proxy_url} from pool"
+                            )
+
                     if attempt < max_retries:
                         if is_once_proxy:
                             self.logger.warning(

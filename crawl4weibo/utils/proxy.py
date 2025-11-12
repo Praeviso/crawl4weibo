@@ -200,3 +200,37 @@ class ProxyPool:
             Number of proxies remaining in once mode buffer
         """
         return len(self._once_mode_buffer)
+
+    def remove_proxy(self, proxy_url: str) -> bool:
+        """
+        Remove a specific proxy from the pool (pooling mode only)
+
+        This is used when a proxy fails (e.g., returns 432 error) and should
+        be immediately removed from the pool. Only works in pooling mode;
+        in once mode, proxies are already single-use and discarded after use.
+
+        Args:
+            proxy_url: The proxy URL to remove (e.g., 'http://1.2.3.4:8080')
+
+        Returns:
+            True if proxy was found and removed, False otherwise
+        """
+        if self.config.use_once_proxy:
+            return False
+
+        initial_pool_size = len(self._proxy_pool)
+        self._proxy_pool = [
+            (url, expire_time)
+            for url, expire_time in self._proxy_pool
+            if url != proxy_url
+        ]
+
+        removed = len(self._proxy_pool) < initial_pool_size
+        if (
+            removed
+            and self._current_index >= len(self._proxy_pool)
+            and self._proxy_pool
+        ):
+            self._current_index = 0
+
+        return removed
