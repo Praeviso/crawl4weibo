@@ -1,5 +1,7 @@
 """Tests for retry behavior with different proxy modes"""
 
+import time
+
 import pytest
 import responses
 
@@ -49,8 +51,6 @@ class TestOnceProxyRetry:
 
         client = WeiboClient(proxy_api_url=proxy_api_url, use_once_proxy=True)
 
-        import time
-
         start_time = time.time()
         user = client.get_user_by_uid("2656274875")
         elapsed_time = time.time() - start_time
@@ -97,8 +97,6 @@ class TestOnceProxyRetry:
 
         client = WeiboClient(proxy_api_url=proxy_api_url, use_once_proxy=True)
 
-        import time
-
         start_time = time.time()
         user = client.get_user_by_uid("2656274875")
         elapsed_time = time.time() - start_time
@@ -139,8 +137,6 @@ class TestOnceProxyRetry:
 
         client = WeiboClient(proxy_api_url=proxy_api_url, use_once_proxy=False)
 
-        import time
-
         start_time = time.time()
         user = client.get_user_by_uid("2656274875")
         elapsed_time = time.time() - start_time
@@ -172,8 +168,6 @@ class TestOnceProxyRetry:
         )
 
         client = WeiboClient()
-
-        import time
 
         start_time = time.time()
         user = client.get_user_by_uid("2656274875")
