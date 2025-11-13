@@ -99,21 +99,23 @@ python examples/download_images_example.py
 
 ## 代理池配置示例
 ```python
-from crawl4weibo import WeiboClient
+from crawl4weibo import WeiboClient, ProxyPoolConfig
 
 # 方式1: 使用动态代理API（池化模式 - 默认）
-client = WeiboClient(
+proxy_config = ProxyPoolConfig(
     proxy_api_url="http://api.proxy.com/get?format=json",
     dynamic_proxy_ttl=300,      # 动态代理过期时间（秒）
-    proxy_pool_size=10,         # IP池容量
-    proxy_fetch_strategy="random"  # random(随机) 或 round_robin(轮询)
+    pool_size=10,               # IP池容量
+    fetch_strategy="random"     # random(随机) 或 round_robin(轮询)
 )
+client = WeiboClient(proxy_config=proxy_config)
 
 # 方式2: 一次性代理模式（适用于单次使用的IP提供商）
-client = WeiboClient(
+proxy_config = ProxyPoolConfig(
     proxy_api_url="http://api.proxy.com/get",
     use_once_proxy=True,
 )
+client = WeiboClient(proxy_config=proxy_config)
 # 高效：如果API返回多个IP，会全部用完再获取新批次
 
 # 方式3: 手动添加静态代理
@@ -122,20 +124,22 @@ client.add_proxy("http://1.2.3.4:8080", ttl=600)  # 指定过期时间
 client.add_proxy("http://5.6.7.8:8080")  # 永不过期
 
 # 方式4: 混合使用动态和静态代理
-client = WeiboClient(
+proxy_config = ProxyPoolConfig(
     proxy_api_url="http://api.proxy.com/get",
-    proxy_pool_size=20
+    pool_size=20
 )
+client = WeiboClient(proxy_config=proxy_config)
 client.add_proxy("http://1.2.3.4:8080", ttl=None)
 
 # 方式5: 自定义解析器（适配不同代理服务商）
 def custom_parser(data):
     return [f"http://{data['result']['ip']}:{data['result']['port']}"]
 
-client = WeiboClient(
+proxy_config = ProxyPoolConfig(
     proxy_api_url="http://custom-api.com/proxy",
     proxy_api_parser=custom_parser
 )
+client = WeiboClient(proxy_config=proxy_config)
 
 # 灵活控制单次请求是否使用代理
 user = client.get_user_by_uid("2656274875", use_proxy=False)
