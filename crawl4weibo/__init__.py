@@ -17,6 +17,7 @@ from .exceptions.base import (
     RateLimitError,
     UserNotFoundError,
 )
+from .models.comment import Comment
 from .models.post import Post
 from .models.user import User
 from .utils.downloader import ImageDownloader
@@ -27,6 +28,7 @@ __all__ = [
     "WeiboClient",
     "User",
     "Post",
+    "Comment",
     "ImageDownloader",
     "ProxyPoolConfig",
     "RateLimitConfig",

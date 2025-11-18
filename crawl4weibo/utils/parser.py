@@ -168,3 +168,75 @@ class WeiboParser:
 
         mentions = re.findall(r"@([^\s@]+)", text)
         return [mention.strip() for mention in mentions if mention.strip()]
+
+    def parse_comments(
+        self, response_data: Dict[str, Any]
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """
+        Parse comments from API response
+
+        Args:
+            response_data: Raw API response data
+
+        Returns:
+            Tuple of (list of parsed comment dictionaries, pagination info)
+        """
+        try:
+            if "data" not in response_data:
+                return [], {}
+
+            data = response_data["data"]
+            comments = []
+
+            # Parse comment list
+            comment_list = data.get("data", [])
+            for comment_data in comment_list:
+                comment = self._parse_single_comment(comment_data)
+                if comment:
+                    comments.append(comment)
+
+            # Extract pagination info
+            pagination = {
+                "total_number": data.get("total_number", 0),
+                "max": data.get("max", 0),
+            }
+
+            return comments, pagination
+        except Exception as e:
+            self.logger.error(f"Failed to parse comments: {e}")
+            raise ParseError(f"Failed to parse comments: {e}")
+
+    def _parse_single_comment(
+        self, comment_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Parse a single comment from API response"""
+        try:
+            user_data = comment_data.get("user", {})
+            pic_data = comment_data.get("pic", {})
+
+            comment = {
+                "id": str(comment_data.get("id", "")),
+                "text": self._clean_text(comment_data.get("text", "")),
+                "created_at": comment_data.get("created_at", ""),
+                "source": comment_data.get("source", ""),
+                "user_id": str(user_data.get("id", "")),
+                "user_screen_name": user_data.get("screen_name", ""),
+                "user_avatar_url": user_data.get("profile_image_url", ""),
+                "user_verified": user_data.get("verified", False),
+                "user_verified_type": user_data.get("verified_type", -1),
+                "user_followers_count": user_data.get("followers_count_str", ""),
+                "like_counts": comment_data.get("like_counts", 0),
+                "liked": comment_data.get("liked", False),
+                "reply_id": (
+                    str(comment_data.get("reply_id"))
+                    if comment_data.get("reply_id")
+                    else None
+                ),
+                "reply_text": comment_data.get("reply_text"),
+                "pic_url": pic_data.get("url", "") if pic_data else "",
+            }
+
+            return comment
+        except Exception as e:
+            self.logger.error(f"Failed to parse single comment: {e}")
+            return None

@@ -11,8 +11,9 @@ Crawl4Weibo 是一个开箱即用的微博爬虫 Python 库，模拟移动端请
 - **支持浏览器自动化获取 Cookie**：使用 Playwright 模拟真实浏览器,应对加强的反爬策略
 - **内置 432 防护处理**：指数退避重试，减少请求失败
 - **支持动态和静态IP代理池统一管理**：可配置过期时间，支持轮询和自动清理
-- **标准化的数据模型**：`User` 与 `Post` 数据模型，可递归访问转发内容
+- **标准化的数据模型**：`User`、`Post` 与 `Comment` 数据模型，可递归访问转发内容
 - **支持微博长文展开**：关键词搜索、用户列表抓取与批量分页
+- **评论抓取功能**：获取微博评论，支持自动翻页和嵌套回复
 - **提供图像下载工具**：支持单条、批量和整页下载，并带重复文件检查
 - **统一日志与错误类型**：便于快速定位网络、解析或鉴权问题
 
@@ -61,6 +62,18 @@ for user in users[:3]:
 # 搜索微博
 results = client.search_posts("人工智能", page=1)
 print(f"找到 {len(results)} 条搜索结果")
+
+# 获取微博评论
+if results:
+    post_id = results[0].id
+    comments, pagination = client.get_comments(post_id, page=1)
+    print(f"获取到 {len(comments)} 条评论")
+    print(f"共有 {pagination['total_number']} 条评论")
+
+    # 自动翻页获取全部评论
+    all_comments = client.get_all_comments(post_id, max_pages=3)
+    for comment in all_comments[:3]:
+        print(f"{comment.user_screen_name}: {comment.text[:50]}...")
 ```
 更多示例请参考 [`examples/simple_example.py`](examples/simple_example.py)。
 
@@ -163,6 +176,8 @@ posts = client.get_user_posts("2656274875", page=1)  # 使用代理
 - `get_user_by_uid(uid)`：获取用户画像与计数
 - `get_user_posts(uid, page=1, expand=False)`：抓取用户首页微博，支持展开长文
 - `get_post_by_bid(bid)`：获取单条微博的完整正文与多媒体信息
+- `get_comments(post_id, page=1)`：获取指定微博的评论（返回评论列表和分页信息）
+- `get_all_comments(post_id, max_pages=None)`：自动翻页获取全部评论
 - `search_users(query, page=1, count=10)` / `search_posts(query, page=1)`：关键词搜索
 - `download_post_images(post, ...)`、`download_user_posts_images(uid, pages=2, ...)`：下载图像素材
 - **统一异常**：`NetworkError`、`RateLimitError`、`UserNotFoundError` 等，便于业务兜底

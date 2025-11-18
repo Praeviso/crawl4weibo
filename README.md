@@ -11,8 +11,9 @@ Crawl4Weibo is a ready-to-use Weibo (微博) web scraper Python library that sim
 - **Browser-Based Cookie Fetching**: Uses Playwright to simulate real browsers for enhanced anti-scraping bypass
 - **Built-in 432 Protection**: Handles anti-scraping protection with exponential backoff retry mechanism
 - **Unified Proxy Pool Management**: Supports both dynamic and static IP proxy pools with configurable TTL, polling strategies, and automatic cleanup
-- **Standardized Data Models**: Clean `User` and `Post` data models with recursive access to reposted content
+- **Standardized Data Models**: Clean `User`, `Post`, and `Comment` data models with recursive access to reposted content
 - **Long Text Expansion**: Supports expanding truncated long posts, keyword search, user list fetching, and batch pagination
+- **Comment Scraping**: Fetch post comments with automatic pagination and support for nested replies
 - **Image Download Utilities**: Download images from single posts, batches, or entire pages with duplicate file detection
 - **Unified Logging & Error Types**: Quickly locate network, parsing, or authentication issues
 
@@ -61,6 +62,18 @@ for user in users[:3]:
 # Search posts
 results = client.search_posts("人工智能", page=1)
 print(f"Found {len(results)} results")
+
+# Get post comments
+if results:
+    post_id = results[0].id
+    comments, pagination = client.get_comments(post_id, page=1)
+    print(f"Retrieved {len(comments)} comments")
+    print(f"Total comments: {pagination['total_number']}")
+
+    # Get all comments with automatic pagination
+    all_comments = client.get_all_comments(post_id, max_pages=3)
+    for comment in all_comments[:3]:
+        print(f"{comment.user_screen_name}: {comment.text[:50]}...")
 ```
 For more examples, see [`examples/simple_example.py`](examples/simple_example.py).
 
@@ -163,6 +176,8 @@ posts = client.get_user_posts("2656274875", page=1)  # Uses proxy
 - `get_user_by_uid(uid)`: Get user profile and statistics
 - `get_user_posts(uid, page=1, expand=False)`: Fetch user timeline posts with optional long text expansion
 - `get_post_by_bid(bid)`: Get full content and media info for a single post
+- `get_comments(post_id, page=1)`: Get comments for a specific post (returns comments list and pagination info)
+- `get_all_comments(post_id, max_pages=None)`: Get all comments with automatic pagination
 - `search_users(query, page=1, count=10)` / `search_posts(query, page=1)`: Keyword search
 - `download_post_images(post, ...)`, `download_user_posts_images(uid, pages=2, ...)`: Download image assets
 - **Unified Exceptions**: `NetworkError`, `RateLimitError`, `UserNotFoundError`, etc., for business-level error handling

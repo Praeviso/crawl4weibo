@@ -54,6 +54,20 @@ def main():
         for post in posts:
             print(f"  - {post.text[:50]}...")
 
+        # Get post comments
+        if posts:
+            print("\nFetching comments for first post...")
+            post_id = posts[0].id
+            comments, pagination = client.get_comments(post_id, page=1)
+            print(f"Retrieved {len(comments)} comments")
+            print(f"Total comments: {pagination['total_number']}")
+
+            # Get all comments with automatic pagination
+            print("\nFetching all comments (limited to 3 pages)...")
+            all_comments = client.get_all_comments(post_id, max_pages=3)
+            for i, comment in enumerate(all_comments[:3], 1):
+                print(f"  {i}. {comment.user_screen_name}: {comment.text[:50]}...")
+
         print("\nTest completed successfully!")
 
     except Exception as e:

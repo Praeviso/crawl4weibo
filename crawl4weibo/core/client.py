@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 
 from ..exceptions.base import CrawlError, NetworkError, ParseError, UserNotFoundError
+from ..models.comment import Comment
 from ..models.post import Post
 from ..models.user import User
 from ..utils.cookie_fetcher import CookieFetcher
@@ -346,6 +347,7 @@ class WeiboClient:
         self.proxy_pool.clear_pool()
         self.logger.info("Proxy pool cleared")
 
+    @rate_limit()
     def get_user_by_uid(self, uid: str, use_proxy: bool = True) -> User:
         """
         Get user information
@@ -647,3 +649,98 @@ class WeiboClient:
         subdir = f"user_{uid}"
 
         return self.download_posts_images(all_posts, download_dir, subdir)
+
+    @rate_limit()
+    def get_comments(
+        self,
+        post_id: str,
+        page: int = 1,
+        use_proxy: bool = True,
+    ) -> tuple[List[Comment], Dict[str, int]]:
+        """
+        Get comments for a specific post
+
+        Args:
+            post_id: Post ID (numeric ID, not bid)
+            page: Page number
+            use_proxy: Whether to use proxy, default True
+
+        Returns:
+            Tuple of (List of Comment objects, pagination info dict with
+            total_number and max fields)
+        """
+        url = "https://m.weibo.cn/api/comments/show"
+        params = {"id": post_id, "page": page}
+
+        data = self._request(url, params, use_proxy=use_proxy)
+
+        if not data.get("data"):
+            return [], {"total_number": 0, "max": 0}
+
+        comments_data, pagination = self.parser.parse_comments(data)
+        comments = [Comment.from_dict(comment_data) for comment_data in comments_data]
+
+        self.logger.info(
+            f"Fetched {len(comments)} comments for post {post_id} "
+            f"(page {page}, total: {pagination.get('total_number', 0)})"
+        )
+        return comments, pagination
+
+    def get_all_comments(
+        self,
+        post_id: str,
+        max_pages: Optional[int] = None,
+        use_proxy: bool = True,
+    ) -> List[Comment]:
+        """
+        Get all comments for a specific post with automatic pagination
+
+        Args:
+            post_id: Post ID (numeric ID, not bid)
+            max_pages: Maximum number of pages to fetch (None for all pages)
+            use_proxy: Whether to use proxy, default True
+
+        Returns:
+            List of all Comment objects
+        """
+        all_comments = []
+        page = 1
+        pages_fetched = 0
+
+        self.logger.info(
+            f"Starting to fetch all comments for post {post_id}"
+            + (f", max pages: {max_pages}" if max_pages else "")
+        )
+
+        while True:
+            if max_pages and page > max_pages:
+                self.logger.info(f"Reached max pages limit ({max_pages}), stopping")
+                break
+
+            try:
+                comments, pagination = self.get_comments(
+                    post_id, page=page, use_proxy=use_proxy
+                )
+
+                if not comments:
+                    self.logger.info(f"No more comments at page {page}, stopping")
+                    break
+
+                all_comments.extend(comments)
+                pages_fetched += 1
+
+                max_page = pagination.get("max", 0)
+                if max_page > 0 and page >= max_page:
+                    self.logger.info(f"Reached last page ({max_page}), stopping")
+                    break
+
+                page += 1
+
+            except Exception as e:
+                self.logger.error(f"Error fetching page {page}: {e}")
+                break
+
+        self.logger.info(
+            f"Fetched total {len(all_comments)} comments from {pages_fetched} pages"
+        )
+        return all_comments
