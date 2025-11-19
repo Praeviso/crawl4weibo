@@ -190,8 +190,7 @@ class WeiboClient:
                 print("ERROR: Playwright browser is not installed")
                 print("=" * 70)
                 print(
-                    "\nPlaywright is installed, but "
-                    "the Chromium browser is missing.\n"
+                    "\nPlaywright is installed, but the Chromium browser is missing.\n"
                 )
                 print("Please run the following command to install the browser:\n")
                 print("  uv run playwright install chromium\n")
