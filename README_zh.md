@@ -8,6 +8,7 @@ Crawl4Weibo 是一个开箱即用的微博爬虫 Python 库，模拟移动端请
 
 ## ✨ 特性
 - **无需 Cookie 即可运行**：自动初始化 session 和移动端 UA
+- **支持浏览器自动化获取 Cookie**：使用 Playwright 模拟真实浏览器,应对加强的反爬策略
 - **内置 432 防护处理**：指数退避重试，减少请求失败
 - **支持动态和静态IP代理池统一管理**：可配置过期时间，支持轮询和自动清理
 - **标准化的数据模型**：`User` 与 `Post` 数据模型，可递归访问转发内容
@@ -23,6 +24,20 @@ pip install crawl4weibo
 ```bash
 uv pip install crawl4weibo
 ```
+
+### ⚠️ 重要: 安装浏览器内核 (必需)
+
+由于微博反爬策略加强,程序需要使用 Playwright 浏览器自动化来获取 cookies。Playwright 库会随 crawl4weibo 自动安装,但您需要手动安装浏览器内核:
+
+```bash
+# 安装 Chromium 浏览器内核 (必需!)
+playwright install chromium
+
+# 或使用 uv:
+uv run playwright install chromium
+```
+
+如果不安装浏览器内核,程序会提示您安装并无法运行。
 
 ## 快速开始
 ```python

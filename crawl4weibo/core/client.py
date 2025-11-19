@@ -14,6 +14,7 @@ import requests
 from ..exceptions.base import CrawlError, NetworkError, ParseError, UserNotFoundError
 from ..models.post import Post
 from ..models.user import User
+from ..utils.cookie_fetcher import CookieFetcher
 from ..utils.downloader import ImageDownloader
 from ..utils.logger import setup_logger
 from ..utils.parser import WeiboParser
@@ -32,12 +33,15 @@ class WeiboClient:
         user_agent: Optional[str] = None,
         proxy_config: Optional[ProxyPoolConfig] = None,
         rate_limit_config: Optional[RateLimitConfig] = None,
+        use_browser_cookies: bool = True,
+        auto_fetch_cookies: bool = True,
     ):
         """
         Initialize Weibo client
 
         Args:
-            cookies: Optional cookie string or dictionary
+            cookies: Optional cookie string or dictionary. If provided,
+                auto_fetch_cookies will be ignored.
             log_level: Logging level
             log_file: Log file path
             user_agent: Optional User-Agent string
@@ -47,6 +51,13 @@ class WeiboClient:
             rate_limit_config: Rate limiting configuration. If not provided,
                 uses default configuration that automatically adjusts delays
                 based on proxy pool size. Larger pools = shorter delays.
+            use_browser_cookies: If True, uses Playwright to fetch cookies
+                from a real browser. Requires playwright installation.
+                If False, uses simple requests method (may not work if
+                Weibo has strengthened anti-scraping). Default: False
+            auto_fetch_cookies: If True and cookies parameter is not provided,
+                automatically fetches cookies during initialization.
+                Default: True
         """
         self.logger = setup_logger(
             level=getattr(__import__("logging"), log_level.upper()), log_file=log_file
@@ -59,19 +70,24 @@ class WeiboClient:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/112.0.5615.135 Mobile Safari/537.36"
         )
+        self.user_agent = user_agent or default_user_agent
         self.session.headers.update(
             {
-                "User-Agent": user_agent or default_user_agent,
+                "User-Agent": self.user_agent,
                 "Referer": "https://m.weibo.cn/",
                 "Accept": "application/json, text/plain, */*",
                 "X-Requested-With": "XMLHttpRequest",
             }
         )
 
+        # Handle cookies
         if cookies:
             self._set_cookies(cookies)
-
-        self._init_session()
+            self.logger.info("Using provided cookies")
+        elif auto_fetch_cookies:
+            self._init_session(use_browser=use_browser_cookies)
+        else:
+            self.logger.info("Skipping cookie initialization")
 
         self.parser = WeiboParser()
 
@@ -111,13 +127,80 @@ class WeiboClient:
         elif isinstance(cookies, dict):
             self.session.cookies.update(cookies)
 
-    def _init_session(self):
+    def _init_session(self, use_browser: bool = False):
+        """
+        Initialize session and fetch cookies
+
+        Args:
+            use_browser: If True, uses Playwright browser automation.
+                If False, uses simple requests method.
+        """
         try:
-            self.logger.debug("Initializing session...")
-            self.session.get("https://m.weibo.cn/", timeout=5)
-            time.sleep(random.uniform(2, 4))
+            method = "browser" if use_browser else "requests"
+            self.logger.debug(f"Initializing session with {method} method...")
+
+            fetcher = CookieFetcher(user_agent=self.user_agent, use_browser=use_browser)
+            cookies = fetcher.fetch_cookies()
+
+            if cookies:
+                self.session.cookies.update(cookies)
+                self.logger.info(
+                    f"Successfully fetched {len(cookies)} cookies using "
+                    f"{'browser' if use_browser else 'requests'} method"
+                )
+            else:
+                self.logger.warning("No cookies fetched during session initialization")
+
+        except ImportError as e:
+            if use_browser:
+                # Browser mode is required, provide installation instructions
+                self.logger.error(
+                    "Playwright is required but not installed. "
+                    "Please install it with the following commands:"
+                )
+                print("\n" + "=" * 70)
+                print("ERROR: Playwright is not installed")
+                print("=" * 70)
+                print("\nWeibo's anti-scraping has been strengthened.")
+                print("Browser automation is now required to fetch cookies.\n")
+                print("Please run the following commands to install:\n")
+                print("  uv add playwright")
+                print("  uv run playwright install chromium\n")
+                print("Or if you're using pip:\n")
+                print("  pip install playwright")
+                print("  playwright install chromium")
+                print("=" * 70 + "\n")
+                raise
+            else:
+                # Simple mode with ImportError is unexpected
+                self.logger.error(f"Failed to initialize session: {e}")
+                raise
         except Exception as e:
-            self.logger.warning(f"Session initialization failed: {e}")
+            # Catch Playwright browser not installed errors
+            playwright_error = "playwright" in str(e).lower()
+            executable_error = "executable" in str(e).lower()
+            browser_error = "browser" in str(e).lower()
+
+            if use_browser and (playwright_error or executable_error or browser_error):
+                self.logger.error(
+                    "Playwright browser is not installed. "
+                    "Please install it with: playwright install chromium"
+                )
+                print("\n" + "=" * 70)
+                print("ERROR: Playwright browser is not installed")
+                print("=" * 70)
+                print(
+                    "\nPlaywright is installed, but "
+                    "the Chromium browser is missing.\n"
+                )
+                print("Please run the following command to install the browser:\n")
+                print("  uv run playwright install chromium\n")
+                print("Or if you're using pip:\n")
+                print("  playwright install chromium")
+                print("=" * 70 + "\n")
+                raise
+            else:
+                self.logger.warning(f"Session initialization failed: {e}")
 
     def _request(
         self,
@@ -224,6 +307,19 @@ class WeiboClient:
                     raise NetworkError(f"Request failed: {e}")
 
         raise CrawlError("Maximum retry attempts reached")
+
+    def refresh_cookies(self, use_browser: bool = False):
+        """
+        Manually refresh cookies
+
+        Args:
+            use_browser: If True, uses Playwright browser automation.
+                If False, uses simple requests method.
+
+        Raises:
+            ImportError: If use_browser=True but playwright is not installed
+        """
+        self._init_session(use_browser=use_browser)
 
     def add_proxy(self, proxy_url: str, ttl: Optional[int] = None):
         """

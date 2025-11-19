@@ -4,13 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Crawl4Weibo is a production-ready Python library for scraping Weibo (微博) mobile web data. It handles anti-scraping mechanisms (including "432 protection"), manages proxy pools, and returns structured data models. The library is designed to work without cookies by simulating mobile requests with appropriate headers.
+Crawl4Weibo is a production-ready Python library for scraping Weibo (微博) mobile web data. It handles anti-scraping mechanisms (including "432 protection"), manages proxy pools, and returns structured data models. The library supports both simple cookie fetching and browser-based cookie acquisition using Playwright for enhanced anti-scraping bypass.
 
 ## Development Commands
 
 ### Setup and Installation
 ```bash
 uv sync --dev                # Install all dependencies including dev tools
+
+# For browser-based cookie fetching (optional but recommended):
+uv add playwright            # Install Playwright
+uv run playwright install chromium  # Install Chromium browser
 ```
 
 ### Testing
@@ -31,8 +35,8 @@ uv run ruff format crawl4weibo                 # Format code
 
 ### Running Examples
 ```bash
-uv run python examples/simple_example.py       # Basic usage demo
-uv run python examples/download_images_example.py  # Image download demo
+uv run python examples/simple_example.py              # Basic usage demo
+uv run python examples/download_images_example.py     # Image download demo
 ```
 
 ## Architecture
@@ -50,6 +54,7 @@ crawl4weibo/
 │   ├── parser.py  # WeiboParser - JSON response to model conversion
 │   ├── proxy.py   # ProxyPool - unified dynamic/static proxy management
 │   ├── proxy_parsers.py  # Modular proxy API response parsers
+│   ├── cookie_fetcher.py  # CookieFetcher - browser/requests-based cookie acquisition
 │   ├── downloader.py  # ImageDownloader - batch image fetching
 │   └── logger.py  # Logging setup
 └── exceptions/    # Business-level exceptions
@@ -60,16 +65,26 @@ crawl4weibo/
 
 1. **WeiboClient** (core/client.py) - Main entry point
    - Initializes session with mobile User-Agent (Android Chrome)
-   - Calls `_init_session()` to fetch initial cookies from m.weibo.cn
+   - Calls `_init_session()` to fetch initial cookies
+     - **Simple mode** (default): Uses requests to fetch cookies (may fail with strengthened anti-scraping)
+     - **Browser mode**: Uses Playwright to simulate real browser and fetch cookies (more reliable)
    - Uses `_request()` with exponential backoff retry (handles 432 protection)
    - Supports per-request proxy control via `use_proxy` parameter
+   - Supports manual cookie refresh via `refresh_cookies()` method
 
-2. **WeiboParser** (utils/parser.py) - Response transformation
+2. **CookieFetcher** (utils/cookie_fetcher.py) - Cookie acquisition
+   - Two fetching strategies:
+     - **Requests-based**: Fast, simple, but may fail with enhanced anti-scraping
+     - **Browser-based** (Playwright): Slower but more reliable, simulates real mobile browser
+   - Browser mode uses stealth settings to avoid detection
+   - Simulates mobile device (Android) with proper viewport and touch support
+
+3. **WeiboParser** (utils/parser.py) - Response transformation
    - Converts raw JSON API responses to typed User/Post models
    - Handles nested repost chains recursively
    - Extracts pagination info and metadata
 
-3. **ProxyPool** (utils/proxy.py) - Proxy management
+4. **ProxyPool** (utils/proxy.py) - Proxy management
    - Supports two modes: **pooling** (default) and **one-time**
    - **Pooling mode**: Caches proxies with TTL, reuses them across requests
      - Supports dynamic proxy APIs (fetches multiple proxies per call)
@@ -84,7 +99,7 @@ crawl4weibo/
      - Cost-efficient: uses all proxies from batch before fetching new batch
    - Parser architecture: `proxy_parsers.py` contains modular format-specific parsers
 
-4. **Exception Hierarchy** (exceptions/base.py)
+5. **Exception Hierarchy** (exceptions/base.py)
    - `CrawlError` - Base exception with `message` and `code`
    - `NetworkError` - HTTP failures, timeouts
    - `RateLimitError` - 432 protection triggered (includes `retry_after`)
@@ -165,6 +180,30 @@ The retry logic is in `WeiboClient._request()`:
   1. One-time proxy: immediate retry (fresh IP each time)
   2. Pooled proxy: short wait (0.5-1.5s)
   3. No proxy: longer wait (2-7s)
+
+### Browser-Based Cookie Fetching
+
+**Important**: Due to Weibo's strengthened anti-scraping, browser automation (Playwright) is now **required** and enabled by default.
+
+**Prerequisites** (users must install before using the library):
+```bash
+uv add playwright
+uv run playwright install chromium
+```
+
+If not installed, the client will display a friendly error message with installation instructions.
+
+**Usage** (transparent to users):
+```python
+from crawl4weibo.core.client import WeiboClient
+
+# Browser mode is used by default
+client = WeiboClient()
+```
+
+**Advanced options** (rarely needed):
+- Disable browser mode: `WeiboClient(use_browser_cookies=False)` (not recommended)
+- Manual refresh: `client.refresh_cookies(use_browser=True)`
 
 ## Code Style
 

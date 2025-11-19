@@ -8,6 +8,7 @@ Crawl4Weibo is a ready-to-use Weibo (微博) web scraper Python library that sim
 
 ## ✨ Features
 - **No Cookie Required**: Runs without cookies, automatically initializes session with mobile User-Agent
+- **Browser-Based Cookie Fetching**: Uses Playwright to simulate real browsers for enhanced anti-scraping bypass
 - **Built-in 432 Protection**: Handles anti-scraping protection with exponential backoff retry mechanism
 - **Unified Proxy Pool Management**: Supports both dynamic and static IP proxy pools with configurable TTL, polling strategies, and automatic cleanup
 - **Standardized Data Models**: Clean `User` and `Post` data models with recursive access to reposted content
@@ -23,6 +24,20 @@ Or use the faster `uv`:
 ```bash
 uv pip install crawl4weibo
 ```
+
+### ⚠️ Important: Install Browser Kernel (Required)
+
+Due to Weibo's strengthened anti-scraping measures, the program needs to use Playwright browser automation to fetch cookies. The Playwright library will be installed automatically with crawl4weibo, but you need to manually install the browser kernel:
+
+```bash
+# Install Chromium browser kernel (Required!)
+playwright install chromium
+
+# Or using uv:
+uv run playwright install chromium
+```
+
+Without installing the browser kernel, the program will prompt you to install and will not run.
 
 ## Quick Start
 ```python
