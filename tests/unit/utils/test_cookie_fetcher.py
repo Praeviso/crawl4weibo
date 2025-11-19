@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch, Mock
 from crawl4weibo.utils.cookie_fetcher import (
     CookieFetcher,
     fetch_cookies_simple,
-    fetch_cookies_browser,
 )
 
 
