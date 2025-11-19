@@ -70,7 +70,7 @@ class TestClientCookieInitialization:
         mock_fetcher = MagicMock()
         mock_fetcher_class.return_value = mock_fetcher
 
-        client = WeiboClient(auto_fetch_cookies=False)
+        WeiboClient(auto_fetch_cookies=False)
 
         # CookieFetcher should not be called
         mock_fetcher_class.assert_not_called()
