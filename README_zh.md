@@ -25,19 +25,16 @@ pip install crawl4weibo
 uv pip install crawl4weibo
 ```
 
-### ⚠️ 重要: 安装浏览器内核 (必需)
+### ⚠️ 重要: 安装浏览器内核 (推荐, 默认模式下必需)
 
-由于微博反爬策略加强,程序需要使用 Playwright 浏览器自动化来获取 cookies。Playwright 库会随 crawl4weibo 自动安装,但您需要手动安装浏览器内核:
+由于微博反爬策略加强,推荐使用 Playwright 浏览器自动化来获取 cookies。Playwright 库会随 crawl4weibo 自动安装,但您需要手动安装浏览器内核:
 
 ```bash
-# 安装 Chromium 浏览器内核 (必需!)
+# 安装 Chromium 浏览器内核 (推荐!)
 playwright install chromium
 
 # 或使用 uv:
 uv run playwright install chromium
-```
-
-如果不安装浏览器内核,程序会提示您安装并无法运行。
 
 ## 快速开始
 ```python
