@@ -54,7 +54,7 @@ class WeiboClient:
             use_browser_cookies: If True, uses Playwright to fetch cookies
                 from a real browser. Requires playwright installation.
                 If False, uses simple requests method (may not work if
-                Weibo has strengthened anti-scraping). Default: False
+                Weibo has strengthened anti-scraping). Default: True
             auto_fetch_cookies: If True and cookies parameter is not provided,
                 automatically fetches cookies during initialization.
                 Default: True
