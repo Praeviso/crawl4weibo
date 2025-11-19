@@ -1,7 +1,7 @@
 """Tests for WeiboClient cookie initialization"""
 
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from crawl4weibo import WeiboClient
 from crawl4weibo.utils.cookie_fetcher import CookieFetcher
