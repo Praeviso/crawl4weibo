@@ -6,7 +6,7 @@ Unit tests for cookie_fetcher module
 
 import pytest
 import responses
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import patch, Mock
 
 from crawl4weibo.utils.cookie_fetcher import (
     CookieFetcher,
