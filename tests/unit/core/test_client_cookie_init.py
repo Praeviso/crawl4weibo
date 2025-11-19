@@ -31,7 +31,7 @@ class TestClientCookieInitialization:
         mock_fetcher.fetch_cookies.return_value = {"test": "cookie"}
         mock_fetcher_class.return_value = mock_fetcher
 
-        client = WeiboClient(use_browser_cookies=True)
+        WeiboClient(use_browser_cookies=True)
 
         call_kwargs = mock_fetcher_class.call_args.kwargs
         assert call_kwargs["use_browser"] is True
