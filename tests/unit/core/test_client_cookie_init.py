@@ -18,7 +18,7 @@ class TestClientCookieInitialization:
         mock_fetcher.fetch_cookies.return_value = {"test": "cookie"}
         mock_fetcher_class.return_value = mock_fetcher
 
-        client = WeiboClient()
+        WeiboClient()
 
         # Verify CookieFetcher was created with browser mode
         mock_fetcher_class.assert_called_once()
