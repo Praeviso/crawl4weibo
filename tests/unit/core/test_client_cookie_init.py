@@ -108,7 +108,7 @@ class TestClientCookieInitialization:
         mock_fetcher_class.return_value = mock_fetcher
 
         custom_ua = "Custom User Agent"
-        client = WeiboClient(user_agent=custom_ua)
+        WeiboClient(user_agent=custom_ua)
 
         # Verify custom UA was passed to CookieFetcher
         call_kwargs = mock_fetcher_class.call_args.kwargs
