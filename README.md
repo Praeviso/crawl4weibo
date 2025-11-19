@@ -25,19 +25,16 @@ Or use the faster `uv`:
 uv pip install crawl4weibo
 ```
 
-### ⚠️ Important: Install Browser Kernel (Required)
+### ⚠️ Important: Install Browser Kernel (Recommended for Default Usage)
 
-Due to Weibo's strengthened anti-scraping measures, the program needs to use Playwright browser automation to fetch cookies. The Playwright library will be installed automatically with crawl4weibo, but you need to manually install the browser kernel:
+Due to Weibo's strengthened anti-scraping measures, the program uses Playwright browser automation by default to fetch cookies and bypass anti-scraping. The Playwright library will be installed automatically with crawl4weibo, but you need to manually install the browser kernel:
 
 ```bash
-# Install Chromium browser kernel (Required!)
+# Install Chromium browser kernel (Recommended!)
 playwright install chromium
 
 # Or using uv:
 uv run playwright install chromium
-```
-
-Without installing the browser kernel, the program will prompt you to install and will not run.
 
 ## Quick Start
 ```python
