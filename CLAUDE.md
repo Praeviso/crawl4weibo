@@ -66,8 +66,8 @@ crawl4weibo/
 1. **WeiboClient** (core/client.py) - Main entry point
    - Initializes session with mobile User-Agent (Android Chrome)
    - Calls `_init_session()` to fetch initial cookies
-     - **Simple mode** (default): Uses requests to fetch cookies (may fail with strengthened anti-scraping)
-     - **Browser mode**: Uses Playwright to simulate real browser and fetch cookies (more reliable)
+     - **Browser mode** (default): Uses Playwright to simulate real browser and fetch cookies (more reliable)
+     - **Simple mode**: Uses requests to fetch cookies (may fail with strengthened anti-scraping)
    - Uses `_request()` with exponential backoff retry (handles 432 protection)
    - Supports per-request proxy control via `use_proxy` parameter
    - Supports manual cookie refresh via `refresh_cookies()` method
