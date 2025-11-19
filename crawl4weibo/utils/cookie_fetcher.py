@@ -5,11 +5,21 @@ Cookie fetcher module for Weibo
 Supports both simple requests-based and browser-based cookie acquisition
 """
 
+import asyncio
 import random
 import time
 from typing import Dict, Optional
 
 import requests
+
+
+def _is_event_loop_running() -> bool:
+    """Check if we're running inside an asyncio event loop"""
+    try:
+        asyncio.get_running_loop()
+        return True
+    except RuntimeError:
+        return False
 
 
 class CookieFetcher:
@@ -95,6 +105,27 @@ class CookieFetcher:
         Raises:
             ImportError: If playwright is not installed
         """
+        # Check if we're in an event loop (e.g., Jupyter notebook)
+        if _is_event_loop_running():
+            # Use async API
+            return self._fetch_with_browser_async_wrapper(timeout)
+        else:
+            # Use sync API
+            return self._fetch_with_browser_sync(timeout)
+
+    def _fetch_with_browser_sync(self, timeout: int = 30) -> Dict[str, str]:
+        """
+        Fetch cookies using synchronous Playwright API
+
+        Args:
+            timeout: Timeout in seconds
+
+        Returns:
+            Dictionary of cookies
+
+        Raises:
+            ImportError: If playwright is not installed
+        """
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
@@ -167,6 +198,111 @@ class CookieFetcher:
                 browser.close()
 
         return cookies_dict
+
+    async def _fetch_with_browser_async(self, timeout: int = 30) -> Dict[str, str]:
+        """
+        Fetch cookies using asynchronous Playwright API
+
+        Args:
+            timeout: Timeout in seconds
+
+        Returns:
+            Dictionary of cookies
+
+        Raises:
+            ImportError: If playwright is not installed
+        """
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            raise ImportError(
+                "Playwright is required for browser-based cookie fetching. "
+                "Install it with: uv add playwright && "
+                "uv run playwright install chromium"
+            )
+
+        cookies_dict = {}
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                ],
+            )
+
+            context = await browser.new_context(
+                user_agent=self.user_agent,
+                viewport={"width": 393, "height": 851},  # Android device size
+                locale="zh-CN",
+                timezone_id="Asia/Shanghai",
+                device_scale_factor=2.75,
+                is_mobile=True,
+                has_touch=True,
+            )
+
+            # Add extra headers
+            await context.set_extra_http_headers(
+                {
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    "Accept": (
+                        "text/html,application/xhtml+xml,"
+                        "application/xml;q=0.9,image/webp,*/*;q=0.8"
+                    ),
+                }
+            )
+
+            page = await context.new_page()
+
+            try:
+                # Navigate to Weibo mobile homepage
+                await page.goto(
+                    "https://m.weibo.cn/",
+                    timeout=timeout * 1000,
+                    wait_until="networkidle",
+                )
+
+                # Wait a bit for JavaScript to execute and cookies to be set
+                await asyncio.sleep(random.uniform(2, 4))
+
+                # Optional: Simulate some human-like behavior
+                # Scroll down a bit
+                await page.evaluate("window.scrollBy(0, 300)")
+                await asyncio.sleep(random.uniform(0.5, 1))
+
+                # Get cookies
+                cookies = await context.cookies()
+
+                # Convert to dictionary format
+                for cookie in cookies:
+                    cookies_dict[cookie["name"]] = cookie["value"]
+
+            finally:
+                await context.close()
+                await browser.close()
+
+        return cookies_dict
+
+    def _fetch_with_browser_async_wrapper(self, timeout: int = 30) -> Dict[str, str]:
+        """
+        Wrapper to run async browser fetching in an existing event loop
+
+        Args:
+            timeout: Timeout in seconds
+
+        Returns:
+            Dictionary of cookies
+        """
+        # Run the coroutine in a new thread to avoid blocking the existing event loop
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                asyncio.run, self._fetch_with_browser_async(timeout)
+            )
+            return future.result()
 
 
 def fetch_cookies_simple(user_agent: Optional[str] = None) -> Dict[str, str]:
