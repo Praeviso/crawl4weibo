@@ -6,7 +6,7 @@ HTML/JSON parsing utilities for crawl4weibo
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..exceptions.base import ParseError
 from .logger import get_logger
@@ -171,7 +171,7 @@ class WeiboParser:
 
     def parse_comments(
         self, response_data: Dict[str, Any]
-    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Parse comments from API response
 
