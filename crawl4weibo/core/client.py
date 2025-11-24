@@ -7,7 +7,7 @@ Weibo Crawler Client - Based on successfully tested code
 import random
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 
@@ -656,7 +656,7 @@ class WeiboClient:
         post_id: str,
         page: int = 1,
         use_proxy: bool = True,
-    ) -> tuple[List[Comment], Dict[str, int]]:
+    ) -> Tuple[List[Comment], Dict[str, int]]:
         """
         Get comments for a specific post
 
