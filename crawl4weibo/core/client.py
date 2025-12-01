@@ -397,7 +397,7 @@ class WeiboClient:
         if not data.get("data"):
             return []
 
-        posts_data = self.parser.parse_posts(data)
+        posts_data, pagination = self.parser.parse_posts(data)
         posts = [Post.from_dict(post_data) for post_data in posts_data]
         for post in posts:
             if post.is_long_text and expand:
@@ -479,7 +479,7 @@ class WeiboClient:
     @rate_limit()
     def search_posts(
         self, query: str, page: int = 1, use_proxy: bool = True
-    ) -> List[Post]:
+    ) -> Tuple[List[Post], Dict[str, Any]]:
         """
         Search for posts
 
@@ -489,17 +489,22 @@ class WeiboClient:
             use_proxy: Whether to use proxy, default True
 
         Returns:
-            List of Post objects
+            Tuple of (List of Post objects, pagination info dict)
+            Pagination info contains:
+            - page: next page number (None if last page)
+            - has_more: whether there are more pages
         """
         url = "https://m.weibo.cn/api/container/getIndex"
         params = {"containerid": f"100103type=1&q={query}", "page": page}
 
         data = self._request(url, params, use_proxy=use_proxy)
-        posts_data = self.parser.parse_posts(data)
+        posts_data, pagination = self.parser.parse_posts(data)
         posts = [Post.from_dict(post_data) for post_data in posts_data]
 
-        self.logger.info(f"Found {len(posts)} posts")
-        return posts
+        self.logger.info(
+            f"Found {len(posts)} posts (has_more: {pagination.get('has_more', False)})"
+        )
+        return posts, pagination
 
     def search_posts_by_count(
         self, query: str, count: int, max_pages: int = 50, use_proxy: bool = True
@@ -529,7 +534,9 @@ class WeiboClient:
 
         while len(all_posts) < count and page <= max_pages:
             try:
-                posts = self.search_posts(query, page=page, use_proxy=use_proxy)
+                posts, pagination = self.search_posts(
+                    query, page=page, use_proxy=use_proxy
+                )
 
                 if not posts:
                     self.logger.info(
@@ -546,6 +553,13 @@ class WeiboClient:
                 if len(all_posts) >= count:
                     break
 
+                # Check if there are more pages using pagination info
+                if not pagination.get("has_more", False):
+                    self.logger.info(
+                        "Reached last page (cardlistInfo.page is None), stopping"
+                    )
+                    break
+
                 page += 1
 
             except Exception as e:
@@ -559,6 +573,71 @@ class WeiboClient:
         )
 
         return result
+
+    def search_all_posts(
+        self, query: str, max_pages: Optional[int] = None, use_proxy: bool = True
+    ) -> List[Post]:
+        """
+        Search for all posts by keyword with automatic pagination until
+        reaching the last page (detected by cardlistInfo.page being None)
+
+        Args:
+            query: Search keyword
+            max_pages: Maximum number of pages to fetch (safety limit),
+                None for unlimited
+            use_proxy: Whether to use proxy, default True
+
+        Returns:
+            List of all available Post objects
+        """
+        all_posts = []
+        page = 1
+
+        self.logger.info(
+            f"Starting search for all posts matching '{query}'"
+            + (f", max pages: {max_pages}" if max_pages else " (no limit)")
+        )
+
+        while True:
+            if max_pages and page > max_pages:
+                self.logger.info(f"Reached max pages limit ({max_pages}), stopping")
+                break
+
+            try:
+                posts, pagination = self.search_posts(
+                    query, page=page, use_proxy=use_proxy
+                )
+
+                if not posts:
+                    self.logger.info(
+                        f"No more posts found at page {page}, stopping pagination"
+                    )
+                    break
+
+                all_posts.extend(posts)
+                self.logger.info(
+                    f"Page {page}: fetched {len(posts)} posts, total: {len(all_posts)}"
+                )
+
+                # Check if there are more pages using pagination info
+                if not pagination.get("has_more", False):
+                    self.logger.info(
+                        "Reached last page (cardlistInfo.page is None), stopping"
+                    )
+                    break
+
+                page += 1
+
+            except Exception as e:
+                self.logger.error(f"Error fetching page {page}: {e}")
+                break
+
+        self.logger.info(
+            f"Search completed for '{query}': fetched {len(all_posts)} posts "
+            f"from {page} pages"
+        )
+
+        return all_posts
 
     def download_post_images(
         self,

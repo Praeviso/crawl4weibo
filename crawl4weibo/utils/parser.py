@@ -51,7 +51,9 @@ class WeiboParser:
             self.logger.error(f"Failed to parse user info: {e}")
             raise ParseError(f"Failed to parse user info: {e}")
 
-    def parse_posts(self, response_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def parse_posts(
+        self, response_data: Dict[str, Any]
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
         Parse posts from API response
 
@@ -59,11 +61,14 @@ class WeiboParser:
             response_data: Raw API response data
 
         Returns:
-            List of parsed post dictionaries
+            Tuple of (list of parsed post dictionaries, pagination info dict)
+            Pagination info contains:
+            - page: current page number (None if last page)
+            - has_more: whether there are more pages
         """
         try:
             if "data" not in response_data or "cards" not in response_data["data"]:
-                return []
+                return [], {}
 
             posts = []
             cards = response_data["data"]["cards"]
@@ -81,7 +86,16 @@ class WeiboParser:
                             if post_data:
                                 posts.append(post_data)
 
-            return posts
+            # Extract pagination info from cardlistInfo
+            cardlist_info = response_data["data"].get("cardlistInfo", {})
+            page_value = cardlist_info.get("page")
+
+            pagination = {
+                "page": page_value,
+                "has_more": page_value is not None,
+            }
+
+            return posts, pagination
         except Exception as e:
             self.logger.error(f"Failed to parse posts: {e}")
             raise ParseError(f"Failed to parse posts: {e}")

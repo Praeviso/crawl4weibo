@@ -33,7 +33,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/Kritoooo/crawl4weibo"
+Homepage = "https://github.com/Praeviso/crawl4weibo"
 
 [project.optional-dependencies]
 dev = [
