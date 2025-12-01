@@ -208,7 +208,7 @@ class TestSearchPostsByCount:
         assert all(isinstance(post, Post) for post in posts)
 
     @responses.activate
-    def test_search_posts_by_count_less_than_available(self):
+    def test_search_posts_by_count_less_than_available(self, client_no_rate_limit):
         """Test when fewer posts are available than requested"""
         weibo_api_url = "https://m.weibo.cn/api/container/getIndex"
 
