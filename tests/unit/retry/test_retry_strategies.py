@@ -1,12 +1,14 @@
 """Tests for retry behavior with different proxy modes"""
 
 import time
+from unittest.mock import patch
 
 import pytest
 import responses
 
 from crawl4weibo import WeiboClient
 from crawl4weibo.utils.proxy import ProxyPoolConfig
+from crawl4weibo.utils.rate_limit import RateLimitConfig
 
 
 @pytest.mark.unit
@@ -50,17 +52,25 @@ class TestOnceProxyRetry:
             status=200,
         )
 
-        proxy_config = ProxyPoolConfig(proxy_api_url=proxy_api_url, use_once_proxy=True)
-        client = WeiboClient(proxy_config=proxy_config)
+        with patch("crawl4weibo.core.client.CookieFetcher"):
+            proxy_config = ProxyPoolConfig(
+                proxy_api_url=proxy_api_url, use_once_proxy=True
+            )
+            rate_config = RateLimitConfig(disable_delay=True)
+            client = WeiboClient(
+                proxy_config=proxy_config,
+                rate_limit_config=rate_config,
+                auto_fetch_cookies=False,
+            )
 
-        start_time = time.time()
-        user = client.get_user_by_uid("2656274875")
-        elapsed_time = time.time() - start_time
+            start_time = time.time()
+            user = client.get_user_by_uid("2656274875")
+            elapsed_time = time.time() - start_time
 
         assert user is not None
         assert user.screen_name == "TestUser"
-        # Allow up to 3 seconds for the operation (browser cookie fetch + immediate retry + mock request overhead)
-        assert elapsed_time < 3.0
+        # With mocked cookie fetcher and disabled rate limiting, should complete quickly
+        assert elapsed_time < 1.0
 
     @responses.activate
     def test_once_proxy_network_error_retry_no_wait(self):
@@ -98,17 +108,25 @@ class TestOnceProxyRetry:
             status=200,
         )
 
-        proxy_config = ProxyPoolConfig(proxy_api_url=proxy_api_url, use_once_proxy=True)
-        client = WeiboClient(proxy_config=proxy_config)
+        with patch("crawl4weibo.core.client.CookieFetcher"):
+            proxy_config = ProxyPoolConfig(
+                proxy_api_url=proxy_api_url, use_once_proxy=True
+            )
+            rate_config = RateLimitConfig(disable_delay=True)
+            client = WeiboClient(
+                proxy_config=proxy_config,
+                rate_limit_config=rate_config,
+                auto_fetch_cookies=False,
+            )
 
-        start_time = time.time()
-        user = client.get_user_by_uid("2656274875")
-        elapsed_time = time.time() - start_time
+            start_time = time.time()
+            user = client.get_user_by_uid("2656274875")
+            elapsed_time = time.time() - start_time
 
         assert user is not None
         assert user.screen_name == "TestUser"
-        # Allow up to 3 seconds for the operation (browser cookie fetch + immediate retry + mock request overhead)
-        assert elapsed_time < 3.0
+        # With mocked cookie fetcher and disabled rate limiting, should complete quickly
+        assert elapsed_time < 1.0
 
     @responses.activate
     def test_pooled_proxy_432_retry_has_wait(self):
@@ -140,15 +158,25 @@ class TestOnceProxyRetry:
             status=200,
         )
 
-        proxy_config = ProxyPoolConfig(proxy_api_url=proxy_api_url, use_once_proxy=False)
-        client = WeiboClient(proxy_config=proxy_config)
+        with patch("crawl4weibo.core.client.CookieFetcher"):
+            proxy_config = ProxyPoolConfig(
+                proxy_api_url=proxy_api_url, use_once_proxy=False
+            )
+            rate_config = RateLimitConfig(disable_delay=True)
+            client = WeiboClient(
+                proxy_config=proxy_config,
+                rate_limit_config=rate_config,
+                auto_fetch_cookies=False,
+            )
 
-        start_time = time.time()
-        user = client.get_user_by_uid("2656274875")
-        elapsed_time = time.time() - start_time
+            start_time = time.time()
+            user = client.get_user_by_uid("2656274875")
+            elapsed_time = time.time() - start_time
 
         assert user is not None
         assert user.screen_name == "TestUser"
+        # Test verifies 432 retry has wait time in pooled proxy mode (0.5-1.5s)
+        # With disabled rate limiting, this wait is from retry logic
         assert elapsed_time >= 0.5
 
     @responses.activate
@@ -173,12 +201,18 @@ class TestOnceProxyRetry:
             status=200,
         )
 
-        client = WeiboClient()
+        with patch("crawl4weibo.core.client.CookieFetcher"):
+            rate_config = RateLimitConfig(disable_delay=True)
+            client = WeiboClient(
+                rate_limit_config=rate_config, auto_fetch_cookies=False
+            )
 
-        start_time = time.time()
-        user = client.get_user_by_uid("2656274875")
-        elapsed_time = time.time() - start_time
+            start_time = time.time()
+            user = client.get_user_by_uid("2656274875")
+            elapsed_time = time.time() - start_time
 
         assert user is not None
         assert user.screen_name == "TestUser"
+        # Test verifies 432 retry without proxy has longer wait (4-7s)
+        # With disabled rate limiting, this wait is from retry logic
         assert elapsed_time >= 4.0
