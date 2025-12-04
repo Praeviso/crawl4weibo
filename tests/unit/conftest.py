@@ -36,7 +36,7 @@ def client_no_rate_limit():
     with patch("crawl4weibo.core.client.CookieFetcher"):
         rate_config = RateLimitConfig(disable_delay=True)
         client = WeiboClient(rate_limit_config=rate_config, auto_fetch_cookies=False)
-    return client
+        yield client
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def client_no_rate_limit_with_proxy():
             proxy_config=proxy_config,
             auto_fetch_cookies=False,
         )
-    return client
+        yield client
 
 
 @pytest.fixture
