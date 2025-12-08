@@ -12,7 +12,7 @@
 ## Development Environment Setup
 
 ### Requirements
-- Python 3.8+
+- Python 3.9+
 - uv (recommended package manager)
 
 ### Quick Start

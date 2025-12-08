@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "crawl4weibo"
 description = "A professional Weibo crawler library"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Kritoooo", email = "krito2023@gmail.com"},
@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -50,7 +50,7 @@ include = ["crawl4weibo*"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py37"
+target-version = "py39"
 
 [tool.ruff.lint]
 # Enable essential rules - equivalent to flake8, isort functionality
