@@ -6,7 +6,7 @@ HTML/JSON parsing utilities for crawl4weibo
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from ..exceptions.base import ParseError
 from .logger import get_logger
@@ -18,7 +18,7 @@ class WeiboParser:
     def __init__(self):
         self.logger = get_logger()
 
-    def parse_user_info(self, response_data: Dict[str, Any]) -> Dict[str, Any]:
+    def parse_user_info(self, response_data: dict[str, Any]) -> dict[str, Any]:
         """
         Parse user information from API response
 
@@ -52,8 +52,8 @@ class WeiboParser:
             raise ParseError(f"Failed to parse user info: {e}")
 
     def parse_posts(
-        self, response_data: Dict[str, Any]
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        self, response_data: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         Parse posts from API response
 
@@ -100,7 +100,7 @@ class WeiboParser:
             self.logger.error(f"Failed to parse posts: {e}")
             raise ParseError(f"Failed to parse posts: {e}")
 
-    def _parse_single_post(self, mblog: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _parse_single_post(self, mblog: dict[str, Any]) -> Optional[dict[str, Any]]:
         try:
             post = {
                 "id": str(mblog.get("id", "")),
@@ -152,7 +152,7 @@ class WeiboParser:
                 self.logger.warning(f"Failed to parse time: {time_str}")
                 return None
 
-    def _extract_pic_urls(self, mblog: Dict[str, Any]) -> List[str]:
+    def _extract_pic_urls(self, mblog: dict[str, Any]) -> list[str]:
         pic_urls = []
 
         if "pics" in mblog:
@@ -162,21 +162,21 @@ class WeiboParser:
 
         return pic_urls
 
-    def _extract_video_url(self, mblog: Dict[str, Any]) -> str:
+    def _extract_video_url(self, mblog: dict[str, Any]) -> str:
         if "page_info" in mblog and mblog["page_info"].get("type") == "video":
             media_info = mblog["page_info"].get("media_info", {})
             return media_info.get("stream_url", "")
 
         return ""
 
-    def _extract_topics(self, text: str) -> List[str]:
+    def _extract_topics(self, text: str) -> list[str]:
         if not text:
             return []
 
         topics = re.findall(r"#([^#]+)#", text)
         return [topic.strip() for topic in topics if topic.strip()]
 
-    def _extract_at_users(self, text: str) -> List[str]:
+    def _extract_at_users(self, text: str) -> list[str]:
         if not text:
             return []
 
@@ -184,8 +184,8 @@ class WeiboParser:
         return [mention.strip() for mention in mentions if mention.strip()]
 
     def parse_comments(
-        self, response_data: Dict[str, Any]
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        self, response_data: dict[str, Any]
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         Parse comments from API response
 
@@ -221,8 +221,8 @@ class WeiboParser:
             raise ParseError(f"Failed to parse comments: {e}")
 
     def _parse_single_comment(
-        self, comment_data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, comment_data: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Parse a single comment from API response"""
         try:
             user_data = comment_data.get("user", {})

@@ -6,7 +6,7 @@ Post model for crawl4weibo
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -22,18 +22,18 @@ class Post:
     reposts_count: int = 0
     comments_count: int = 0
     attitudes_count: int = 0
-    pic_urls: List[str] = field(default_factory=list)
+    pic_urls: list[str] = field(default_factory=list)
     video_url: str = ""
     is_original: bool = True
     retweeted_status: Optional["Post"] = None
     location: str = ""
-    topic_ids: List[str] = field(default_factory=list)
-    at_users: List[str] = field(default_factory=list)
+    topic_ids: list[str] = field(default_factory=list)
+    at_users: list[str] = field(default_factory=list)
     is_long_text: bool = False
-    raw_data: Dict[str, Any] = field(default_factory=dict)
+    raw_data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Post":
+    def from_dict(cls, data: dict[str, Any]) -> "Post":
         """Create Post instance from dictionary"""
         retweeted_status = None
         if data.get("retweeted_status"):
@@ -61,7 +61,7 @@ class Post:
         }
         return cls(**post_data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert Post instance to dictionary"""
         result = {
             "id": self.id,

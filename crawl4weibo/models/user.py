@@ -6,7 +6,7 @@ User model for crawl4weibo
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -30,10 +30,10 @@ class User:
     company: str = ""
     registration_time: Optional[datetime] = None
     sunshine_credit: str = ""
-    raw_data: Dict[str, Any] = field(default_factory=dict)
+    raw_data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "User":
+    def from_dict(cls, data: dict[str, Any]) -> "User":
         """Create User instance from dictionary"""
         user_data = {
             "id": str(data.get("id", "")),
@@ -57,7 +57,7 @@ class User:
         }
         return cls(**user_data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert User instance to dictionary"""
         return {
             "id": self.id,

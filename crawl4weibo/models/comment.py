@@ -5,7 +5,7 @@ Comment model for crawl4weibo
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -27,10 +27,10 @@ class Comment:
     reply_id: Optional[str] = None
     reply_text: Optional[str] = None
     pic_url: str = ""
-    raw_data: Dict[str, Any] = field(default_factory=dict)
+    raw_data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Comment":
+    def from_dict(cls, data: dict[str, Any]) -> "Comment":
         """
         Create Comment instance from dictionary
         (expects flattened structure from parser)
@@ -55,7 +55,7 @@ class Comment:
         }
         return cls(**comment_data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert Comment instance to dictionary"""
         return {
             "id": self.id,

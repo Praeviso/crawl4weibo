@@ -7,7 +7,7 @@ Weibo Crawler Client - Based on successfully tested code
 import random
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import requests
 
@@ -28,7 +28,7 @@ class WeiboClient:
 
     def __init__(
         self,
-        cookies: Optional[Union[str, Dict[str, str]]] = None,
+        cookies: Optional[Union[str, dict[str, str]]] = None,
         log_level: str = "INFO",
         log_file: Optional[str] = None,
         user_agent: Optional[str] = None,
@@ -117,7 +117,7 @@ class WeiboClient:
 
         self.logger.info("WeiboClient initialized successfully")
 
-    def _set_cookies(self, cookies: Union[str, Dict[str, str]]):
+    def _set_cookies(self, cookies: Union[str, dict[str, str]]):
         if isinstance(cookies, str):
             cookie_dict = {}
             for pair in cookies.split(";"):
@@ -205,10 +205,10 @@ class WeiboClient:
     def _request(
         self,
         url: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         max_retries: int = 3,
         use_proxy: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Send HTTP request
 
@@ -376,7 +376,7 @@ class WeiboClient:
     @rate_limit()
     def get_user_posts(
         self, uid: str, page: int = 1, expand: bool = False, use_proxy: bool = True
-    ) -> List[Post]:
+    ) -> list[Post]:
         """
         Get user's posts list
 
@@ -440,7 +440,7 @@ class WeiboClient:
     @rate_limit()
     def search_users(
         self, query: str, page: int = 1, count: int = 10, use_proxy: bool = True
-    ) -> List[User]:
+    ) -> list[User]:
         """
         Search for users
 
@@ -479,7 +479,7 @@ class WeiboClient:
     @rate_limit()
     def search_posts(
         self, query: str, page: int = 1, use_proxy: bool = True
-    ) -> Tuple[List[Post], Dict[str, Any]]:
+    ) -> tuple[list[Post], dict[str, Any]]:
         """
         Search for posts
 
@@ -508,7 +508,7 @@ class WeiboClient:
 
     def search_posts_by_count(
         self, query: str, count: int, max_pages: int = 50, use_proxy: bool = True
-    ) -> List[Post]:
+    ) -> list[Post]:
         """
         Search for posts by keyword with automatic pagination until
         reaching specified count
@@ -576,7 +576,7 @@ class WeiboClient:
 
     def search_all_posts(
         self, query: str, max_pages: Optional[int] = None, use_proxy: bool = True
-    ) -> List[Post]:
+    ) -> list[Post]:
         """
         Search for all posts by keyword with automatic pagination until
         reaching the last page (detected by cardlistInfo.page being None)
@@ -644,7 +644,7 @@ class WeiboClient:
         post: Post,
         download_dir: Optional[str] = None,
         subdir: Optional[str] = None,
-    ) -> Dict[str, Optional[str]]:
+    ) -> dict[str, Optional[str]]:
         """
         Download images from a single post
 
@@ -668,10 +668,10 @@ class WeiboClient:
 
     def download_posts_images(
         self,
-        posts: List[Post],
+        posts: list[Post],
         download_dir: Optional[str] = None,
         subdir: Optional[str] = None,
-    ) -> Dict[str, Dict[str, Optional[str]]]:
+    ) -> dict[str, dict[str, Optional[str]]]:
         """
         Download images from multiple posts
 
@@ -704,7 +704,7 @@ class WeiboClient:
         pages: int = 1,
         download_dir: Optional[str] = None,
         expand_long_text: bool = False,
-    ) -> Dict[str, Dict[str, Optional[str]]]:
+    ) -> dict[str, dict[str, Optional[str]]]:
         """
         Download images from user's posts
 
@@ -735,7 +735,7 @@ class WeiboClient:
         post_id: str,
         page: int = 1,
         use_proxy: bool = True,
-    ) -> Tuple[List[Comment], Dict[str, int]]:
+    ) -> tuple[list[Comment], dict[str, int]]:
         """
         Get comments for a specific post
 
@@ -770,7 +770,7 @@ class WeiboClient:
         post_id: str,
         max_pages: Optional[int] = None,
         use_proxy: bool = True,
-    ) -> List[Comment]:
+    ) -> list[Comment]:
         """
         Get all comments for a specific post with automatic pagination
 

@@ -4,11 +4,10 @@
 Proxy API response parsers
 """
 
-from typing import List
 from urllib.parse import quote
 
 
-def parse_plain_text_proxies(response_text: str) -> List[str]:
+def parse_plain_text_proxies(response_text: str) -> list[str]:
     """
     Parse plain text proxy response
 
@@ -134,7 +133,7 @@ def _validate_port(port_str: str):
         raise ValueError(f"Invalid port number (out of range): {port_str}")
 
 
-def _parse_proxy_string_list(proxy_list: List[str]) -> List[str]:
+def _parse_proxy_string_list(proxy_list: list[str]) -> list[str]:
     """
     Parse a list of proxy strings
 
@@ -165,7 +164,7 @@ def _parse_proxy_string_list(proxy_list: List[str]) -> List[str]:
     return proxies
 
 
-def parse_json_proxies(response_data: dict) -> List[str]:
+def parse_json_proxies(response_data: dict) -> list[str]:
     """
     Parse JSON proxy response
 
@@ -261,7 +260,7 @@ def _parse_proxy_dict(data: dict) -> str:
     return f"http://{ip}:{port}"
 
 
-def default_proxy_parser(response_data) -> List[str]:
+def default_proxy_parser(response_data) -> list[str]:
     """
     Default proxy API response parser
 

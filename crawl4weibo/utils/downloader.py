@@ -9,7 +9,7 @@ import random
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import requests
 
@@ -26,7 +26,7 @@ class ImageDownloader:
         session: Optional[requests.Session] = None,
         download_dir: str = "./images",
         max_retries: int = 3,
-        delay_range: Tuple[float, float] = (1.0, 3.0),
+        delay_range: tuple[float, float] = (1.0, 3.0),
         proxy_pool: Optional[ProxyPool] = None,
     ):
         """
@@ -160,10 +160,10 @@ class ImageDownloader:
 
     def download_post_images(
         self,
-        pic_urls: List[str],
+        pic_urls: list[str],
         post_id: str,
         subdir: Optional[str] = None,
-    ) -> Dict[str, Optional[str]]:
+    ) -> dict[str, Optional[str]]:
         """
         Download all images from a post
 
@@ -206,9 +206,9 @@ class ImageDownloader:
 
     def download_posts_images(
         self,
-        posts: List[Any],
+        posts: list[Any],
         subdir: Optional[str] = None,
-    ) -> Dict[str, Dict[str, Optional[str]]]:
+    ) -> dict[str, dict[str, Optional[str]]]:
         """
         Download images from multiple posts
 
@@ -264,7 +264,7 @@ class ImageDownloader:
 
         return filename
 
-    def get_download_stats(self, download_results: Dict[str, Any]) -> Dict[str, int]:
+    def get_download_stats(self, download_results: dict[str, Any]) -> dict[str, int]:
         """
         Get statistics from download results
 

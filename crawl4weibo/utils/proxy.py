@@ -7,7 +7,7 @@ Proxy pool manager
 import random
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 
 import requests
 
@@ -21,7 +21,7 @@ class ProxyPoolConfig:
     proxy_api_url: Optional[str] = None
     """Dynamic proxy API URL"""
 
-    proxy_api_parser: Optional[Callable[[dict], List[str]]] = None
+    proxy_api_parser: Optional[Callable[[dict], list[str]]] = None
     """Custom proxy API response parser function, should return list of proxy URLs"""
 
     dynamic_proxy_ttl: int = 300
@@ -51,9 +51,9 @@ class ProxyPool:
                 default configuration
         """
         self.config = config or ProxyPoolConfig()
-        self._proxy_pool: List[Tuple[str, float]] = []
+        self._proxy_pool: list[tuple[str, float]] = []
         self._current_index = 0
-        self._once_mode_buffer: List[str] = []
+        self._once_mode_buffer: list[str] = []
 
     def add_proxy(self, proxy_url: str, ttl: Optional[int] = None):
         """
@@ -66,7 +66,7 @@ class ProxyPool:
         expire_time = time.time() + ttl if ttl is not None else float("inf")
         self._proxy_pool.append((proxy_url, expire_time))
 
-    def _fetch_proxies_from_api(self) -> List[str]:
+    def _fetch_proxies_from_api(self) -> list[str]:
         """
         Fetch proxy URLs from proxy API
 
@@ -105,7 +105,7 @@ class ProxyPool:
         """
         return len(self._proxy_pool) >= self.config.pool_size
 
-    def get_proxy(self) -> Optional[Dict[str, str]]:
+    def get_proxy(self) -> Optional[dict[str, str]]:
         """
         Get an available proxy
 

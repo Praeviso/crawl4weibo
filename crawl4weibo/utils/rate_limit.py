@@ -7,7 +7,7 @@ Rate limiting configuration and decorator for API methods
 import functools
 import random
 import time
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Optional
 
 
 class RateLimitConfig:
@@ -22,10 +22,10 @@ class RateLimitConfig:
 
     def __init__(
         self,
-        base_delay: Tuple[float, float] = (1.0, 3.0),
-        min_delay: Tuple[float, float] = (0.1, 0.3),
+        base_delay: tuple[float, float] = (1.0, 3.0),
+        min_delay: tuple[float, float] = (0.1, 0.3),
         pool_size_threshold: int = 20,
-        method_multipliers: Optional[Dict[str, float]] = None,
+        method_multipliers: Optional[dict[str, float]] = None,
         disable_delay: bool = False,
     ):
         """

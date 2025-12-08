@@ -8,7 +8,7 @@ Supports both simple requests-based and browser-based cookie acquisition
 import asyncio
 import random
 import time
-from typing import Dict, Optional
+from typing import Optional
 
 import requests
 
@@ -41,7 +41,7 @@ class CookieFetcher:
         )
         self.use_browser = use_browser
 
-    def fetch_cookies(self, timeout: int = 30) -> Dict[str, str]:
+    def fetch_cookies(self, timeout: int = 30) -> dict[str, str]:
         """
         Fetch cookies from Weibo
 
@@ -60,7 +60,7 @@ class CookieFetcher:
         else:
             return self._fetch_with_requests(timeout)
 
-    def _fetch_with_requests(self, timeout: int = 5) -> Dict[str, str]:
+    def _fetch_with_requests(self, timeout: int = 5) -> dict[str, str]:
         """
         Fetch cookies using simple requests (legacy method)
 
@@ -92,7 +92,7 @@ class CookieFetcher:
         except Exception:
             return {}
 
-    def _fetch_with_browser(self, timeout: int = 30) -> Dict[str, str]:
+    def _fetch_with_browser(self, timeout: int = 30) -> dict[str, str]:
         """
         Fetch cookies using Playwright browser automation
 
@@ -113,7 +113,7 @@ class CookieFetcher:
             # Use sync API
             return self._fetch_with_browser_sync(timeout)
 
-    def _fetch_with_browser_sync(self, timeout: int = 30) -> Dict[str, str]:
+    def _fetch_with_browser_sync(self, timeout: int = 30) -> dict[str, str]:
         """
         Fetch cookies using synchronous Playwright API
 
@@ -199,7 +199,7 @@ class CookieFetcher:
 
         return cookies_dict
 
-    async def _fetch_with_browser_async(self, timeout: int = 30) -> Dict[str, str]:
+    async def _fetch_with_browser_async(self, timeout: int = 30) -> dict[str, str]:
         """
         Fetch cookies using asynchronous Playwright API
 
@@ -285,7 +285,7 @@ class CookieFetcher:
 
         return cookies_dict
 
-    def _fetch_with_browser_async_wrapper(self, timeout: int = 30) -> Dict[str, str]:
+    def _fetch_with_browser_async_wrapper(self, timeout: int = 30) -> dict[str, str]:
         """
         Wrapper to run async browser fetching in an existing event loop
 
@@ -305,7 +305,7 @@ class CookieFetcher:
             return future.result()
 
 
-def fetch_cookies_simple(user_agent: Optional[str] = None) -> Dict[str, str]:
+def fetch_cookies_simple(user_agent: Optional[str] = None) -> dict[str, str]:
     """
     Convenience function to fetch cookies using simple requests method
 
@@ -321,7 +321,7 @@ def fetch_cookies_simple(user_agent: Optional[str] = None) -> Dict[str, str]:
 
 def fetch_cookies_browser(
     user_agent: Optional[str] = None, timeout: int = 30
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Convenience function to fetch cookies using browser automation
 
