@@ -9,16 +9,16 @@ from crawl4weibo.models.comment import Comment
 
 @pytest.mark.unit
 class TestWeiboClientComments:
-    def test_client_has_comment_methods(self):
+    def test_client_has_comment_methods(self, client_no_rate_limit):
         """Test that comment methods exist"""
-        client = WeiboClient()
+        client = client_no_rate_limit
         assert hasattr(client, "get_comments")
         assert hasattr(client, "get_all_comments")
         assert callable(getattr(client, "get_comments"))
         assert callable(getattr(client, "get_all_comments"))
 
     @responses.activate
-    def test_get_comments_single_page(self):
+    def test_get_comments_single_page(self, client_no_rate_limit):
         """Test getting comments for a single page"""
         weibo_api_url = "https://m.weibo.cn/api/comments/show"
 
@@ -75,7 +75,7 @@ class TestWeiboClientComments:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         comments, pagination = client.get_comments("4876256422135140", page=1)
 
         assert len(comments) == 2
@@ -96,7 +96,7 @@ class TestWeiboClientComments:
         assert "宝藏博主" in comments[1].text
 
     @responses.activate
-    def test_get_comments_with_image(self):
+    def test_get_comments_with_image(self, client_no_rate_limit):
         """Test getting comment with image attachment"""
         weibo_api_url = "https://m.weibo.cn/api/comments/show"
 
@@ -135,7 +135,7 @@ class TestWeiboClientComments:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         comments, pagination = client.get_comments("123456")
 
         assert len(comments) == 1
@@ -143,7 +143,7 @@ class TestWeiboClientComments:
         assert comments[0].user_verified is True
 
     @responses.activate
-    def test_get_comments_empty_response(self):
+    def test_get_comments_empty_response(self, client_no_rate_limit):
         """Test getting comments when no comments exist"""
         weibo_api_url = "https://m.weibo.cn/api/comments/show"
 
@@ -154,7 +154,7 @@ class TestWeiboClientComments:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         comments, pagination = client.get_comments("123456")
 
         assert len(comments) == 0
@@ -162,7 +162,7 @@ class TestWeiboClientComments:
         assert pagination["max"] == 0
 
     @responses.activate
-    def test_get_all_comments_multiple_pages(self):
+    def test_get_all_comments_multiple_pages(self, client_no_rate_limit):
         """Test getting all comments with pagination"""
         weibo_api_url = "https://m.weibo.cn/api/comments/show"
 
@@ -230,7 +230,7 @@ class TestWeiboClientComments:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         all_comments = client.get_all_comments("123456")
 
         assert len(all_comments) == 2
@@ -240,7 +240,7 @@ class TestWeiboClientComments:
         assert all_comments[1].liked is True
 
     @responses.activate
-    def test_get_all_comments_with_max_pages(self):
+    def test_get_all_comments_with_max_pages(self, client_no_rate_limit):
         """Test getting comments with max_pages limit"""
         weibo_api_url = "https://m.weibo.cn/api/comments/show"
 
@@ -281,7 +281,7 @@ class TestWeiboClientComments:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         all_comments = client.get_all_comments("123456", max_pages=1)
 
         # Should only fetch 1 page even though max=10
@@ -290,7 +290,7 @@ class TestWeiboClientComments:
         assert len([c for c in responses.calls if "comments" in c.request.url]) == 1
 
     @responses.activate
-    def test_comment_model_to_dict(self):
+    def test_comment_model_to_dict(self, client_no_rate_limit):
         """Test Comment model to_dict method"""
         weibo_api_url = "https://m.weibo.cn/api/comments/show"
 
@@ -327,7 +327,7 @@ class TestWeiboClientComments:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         comments, _ = client.get_comments("123456")
 
         comment_dict = comments[0].to_dict()

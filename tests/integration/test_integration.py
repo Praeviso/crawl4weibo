@@ -5,12 +5,26 @@ import contextlib
 import pytest
 
 from crawl4weibo import WeiboClient
+from crawl4weibo.utils.rate_limit import RateLimitConfig
 
 
 @pytest.fixture
 def client():
-    """Create a WeiboClient instance for testing"""
-    return WeiboClient()
+    """
+    Create a WeiboClient instance for integration testing with real authentication.
+    
+    Integration tests use this fixture to get a client with:
+    - Rate limiting disabled (no artificial delays between requests)
+    - Real cookie fetching enabled (authenticates with Weibo API)
+    
+    This provides true integration testing against the real API while still
+    optimizing test execution speed by removing rate limit delays.
+    
+    Note: Some tests may be skipped if the API is unavailable or rate-limited.
+    """
+    rate_config = RateLimitConfig(disable_delay=True)
+    return WeiboClient(rate_limit_config=rate_config)
+
 
 
 @pytest.mark.integration
@@ -133,9 +147,12 @@ class TestWeiboClientIntegration:
         query = "人工智能"
 
         try:
-            posts = client.search_posts(query, page=1)
+            # search_posts returns a tuple: (posts, pagination_info)
+            posts, pagination = client.search_posts(query, page=1)
 
             assert isinstance(posts, list)
+            assert isinstance(pagination, dict)
+            assert "has_more" in pagination
 
             if posts:
                 post = posts[0]
@@ -162,10 +179,13 @@ class TestWeiboClientIntegration:
 
         try:
             users = client.search_users(rare_query)
-            posts = client.search_posts(rare_query)
+            # search_posts returns a tuple: (posts, pagination_info)
+            posts, pagination = client.search_posts(rare_query)
 
+            # Should return empty lists, not raise exceptions
             assert isinstance(users, list)
             assert isinstance(posts, list)
+            assert isinstance(pagination, dict)
 
         except Exception as e:
             pytest.skip(f"API call failed, skipping integration test: {e}")

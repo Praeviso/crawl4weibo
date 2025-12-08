@@ -352,6 +352,8 @@ class TestAsyncBrowserSupport:
                 pass
 
         # Patch the import and execute
+        # Save original __import__ to avoid recursion
+        original_import = __import__
         with patch("builtins.__import__") as mock_import:
 
             def custom_import(name, *args, **kwargs):
@@ -359,7 +361,7 @@ class TestAsyncBrowserSupport:
                     module = Mock()
                     module.async_playwright = lambda: MockAsyncPlaywright()
                     return module
-                return __import__(name, *args, **kwargs)
+                return original_import(name, *args, **kwargs)
 
             mock_import.side_effect = custom_import
 
@@ -387,12 +389,14 @@ class TestAsyncBrowserSupport:
         fetcher = CookieFetcher(use_browser=True)
 
         # Mock the import to raise ImportError
+        # Save original __import__ to avoid recursion
+        original_import = __import__
         with patch("builtins.__import__") as mock_import:
 
             def custom_import(name, *args, **kwargs):
                 if name == "playwright.async_api":
                     raise ImportError("No module named 'playwright'")
-                return __import__(name, *args, **kwargs)
+                return original_import(name, *args, **kwargs)
 
             mock_import.side_effect = custom_import
 

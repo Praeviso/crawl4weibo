@@ -15,7 +15,7 @@ class TestSearchPosts:
     """Test search_posts method with pagination info"""
 
     @responses.activate
-    def test_search_posts_returns_pagination_info(self):
+    def test_search_posts_returns_pagination_info(self, client_no_rate_limit):
         """Test that search_posts returns pagination info"""
         weibo_api_url = "https://m.weibo.cn/api/container/getIndex"
 
@@ -48,7 +48,7 @@ class TestSearchPosts:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         posts, pagination = client.search_posts("Python", page=1)
 
         assert len(posts) == 1
@@ -57,7 +57,7 @@ class TestSearchPosts:
         assert pagination["has_more"] is True
 
     @responses.activate
-    def test_search_posts_last_page_detection(self):
+    def test_search_posts_last_page_detection(self, client_no_rate_limit):
         """Test that last page is detected when cardlistInfo.page is None"""
         weibo_api_url = "https://m.weibo.cn/api/container/getIndex"
 
@@ -90,7 +90,7 @@ class TestSearchPosts:
             status=200,
         )
 
-        client = WeiboClient()
+        client = client_no_rate_limit
         posts, pagination = client.search_posts("Python", page=1)
 
         assert len(posts) == 1
@@ -200,7 +200,6 @@ class TestSearchPostsByCount:
         responses.add(responses.GET, weibo_api_url, json=mock_page1, status=200)
         responses.add(responses.GET, weibo_api_url, json=mock_page2, status=200)
 
-        client = WeiboClient()
         posts = client_no_rate_limit.search_posts_by_count("Python", count=100)
 
         # Should stop at page 2 (15 posts total)
@@ -400,7 +399,6 @@ class TestSearchAllPosts:
             }
             responses.add(responses.GET, weibo_api_url, json=mock_data, status=200)
 
-        client = WeiboClient()
         posts = client_no_rate_limit.search_all_posts("Python")
 
         # Should fetch all 30 posts from 3 pages
@@ -439,7 +437,6 @@ class TestSearchAllPosts:
         for _ in range(10):
             responses.add(responses.GET, weibo_api_url, json=mock_data, status=200)
 
-        client = WeiboClient()
         posts = client_no_rate_limit.search_all_posts("Python", max_pages=2)
 
         # Should fetch only 2 pages = 20 posts
@@ -455,7 +452,6 @@ class TestSearchAllPosts:
 
         responses.add(responses.GET, weibo_api_url, json=mock_data, status=200)
 
-        client = WeiboClient()
         posts = client_no_rate_limit.search_all_posts("NonExistentTopic")
 
         assert len(posts) == 0
