@@ -75,8 +75,9 @@ indent-style = "space"
 [tool.ruff.lint.isort]
 known-first-party = ["crawl4weibo"]
 
-
 [tool.setuptools_scm]
+# Fallback needed due to https://github.com/dependabot/dependabot-core/issues/12340
+fallback_version = "0.0.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
