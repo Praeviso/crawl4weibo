@@ -209,7 +209,7 @@ class TestPostsWithComments:
         assert len(posts) == 2
         # At least one should have comments (first one likely succeeded)
         posts_with_comments = [p for p in posts if p.comments]
-        assert len(posts_with_comments) >= 0
+        assert len(posts_with_comments) > 0
 
     def test_post_model_has_comments_field(self):
         """Test Post model includes comments field"""
