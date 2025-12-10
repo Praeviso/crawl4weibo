@@ -2,6 +2,7 @@
 
 import pytest
 
+from crawl4weibo.models.comment import Comment
 from crawl4weibo.models.post import Post
 from crawl4weibo.models.user import User
 
@@ -97,3 +98,44 @@ class TestPost:
         assert post_dict["id"] == "123"
         assert post_dict["text"] == "Test post content"
         assert post_dict["attitudes_count"] == 10
+
+    def test_post_with_comments_serialization(self):
+        """Test Post model with comments serialization"""
+        comment = Comment(id="123", text="Test comment", user_screen_name="TestUser")
+
+        post = Post(id="456", bid="ABC", user_id="789", comments=[comment])
+
+        # Test to_dict includes comments
+        post_dict = post.to_dict()
+        assert "comments" in post_dict
+        assert len(post_dict["comments"]) == 1
+        assert post_dict["comments"][0]["text"] == "Test comment"
+
+    def test_post_from_dict_with_comments(self):
+        """Test Post from_dict preserves comments"""
+        post_data = {
+            "id": "456",
+            "bid": "ABC",
+            "user_id": "789",
+            "comments": [
+                {"id": "123", "text": "Test comment", "user_screen_name": "TestUser"}
+            ],
+        }
+        new_post = Post.from_dict(post_data)
+        assert len(new_post.comments) == 1
+        assert new_post.comments[0].text == "Test comment"
+        assert new_post.comments[0].user_screen_name == "TestUser"
+
+    def test_post_empty_comments_default(self):
+        """Test Post has empty comments list by default"""
+        post = Post(id="123", bid="ABC", user_id="456")
+        assert hasattr(post, "comments")
+        assert isinstance(post.comments, list)
+        assert len(post.comments) == 0
+
+    def test_post_to_dict_omits_empty_comments(self):
+        """Test Post to_dict omits comments field when empty"""
+        post = Post(id="123", bid="ABC", user_id="456")
+        post_dict = post.to_dict()
+        # Empty comments should not be in to_dict output
+        assert "comments" not in post_dict

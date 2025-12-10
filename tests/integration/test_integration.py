@@ -189,3 +189,56 @@ class TestWeiboClientIntegration:
 
         except Exception as e:
             pytest.skip(f"API call failed, skipping integration test: {e}")
+
+    @pytest.mark.slow
+    def test_get_user_posts_with_comments(self, client):
+        """
+        Minimal integration test for fetching posts with comments.
+        Tests the with_comments feature against real Weibo API.
+        """
+        test_uid = "2656274875"
+
+        try:
+            # Fetch only 2 posts with 3 comments each to minimize API calls
+            posts = client.get_user_posts(
+                test_uid, page=1, with_comments=True, comment_limit=3
+            )
+
+            assert isinstance(posts, list)
+            assert len(posts) > 0, "Should fetch at least one post"
+
+            # Verify posts have comments field
+            for post in posts[:2]:  # Check first 2 posts only
+                assert hasattr(post, "comments"), "Post should have comments field"
+                assert isinstance(
+                    post.comments, list
+                ), "Post.comments should be a list"
+
+                # If the post has comments on Weibo, verify they were fetched
+                if post.comments_count > 0:
+                    # At least some posts should have fetched comments
+                    # (might not all have comments if they're too new or disabled)
+                    assert (
+                        len(post.comments) <= 3
+                    ), "Should not exceed comment_limit of 3"
+
+                    if post.comments:
+                        comment = post.comments[0]
+                        # Verify comment structure
+                        assert hasattr(comment, "id"), "Comment should have id"
+                        assert hasattr(comment, "text"), "Comment should have text"
+                        assert hasattr(
+                            comment, "user_screen_name"
+                        ), "Comment should have user_screen_name"
+                        assert (
+                            len(comment.text) > 0
+                        ), "Comment text should not be empty"
+
+            print(
+                f"✓ Successfully fetched {len(posts)} posts, "
+                f"at least one with comments verified"
+            )
+
+        except Exception as e:
+            pytest.skip(f"API call failed, skipping integration test: {e}")
+

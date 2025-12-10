@@ -375,7 +375,13 @@ class WeiboClient:
 
     @rate_limit()
     def get_user_posts(
-        self, uid: str, page: int = 1, expand: bool = False, use_proxy: bool = True
+        self,
+        uid: str,
+        page: int = 1,
+        expand: bool = False,
+        with_comments: bool = False,
+        comment_limit: int = 10,
+        use_proxy: bool = True,
     ) -> list[Post]:
         """
         Get user's posts list
@@ -384,10 +390,12 @@ class WeiboClient:
             uid: User ID
             page: Page number
             expand: Whether to expand long text posts
+            with_comments: If True, fetch comments for each post
+            comment_limit: Maximum comments per post (default: 10)
             use_proxy: Whether to use proxy, default True
 
         Returns:
-            List of Post objects
+            List of Post objects (with comments if with_comments=True)
         """
         url = "https://m.weibo.cn/api/container/getIndex"
         params = {"containerid": f"107603{uid}", "page": page}
@@ -409,19 +417,33 @@ class WeiboClient:
                 except Exception as e:
                     self.logger.warning(f"Failed to expand long post {post.bid}: {e}")
 
+        # Fetch comments if requested
+        if with_comments and posts:
+            posts = self._fetch_comments_for_posts(
+                posts, comment_limit=comment_limit, use_proxy=use_proxy
+            )
+
         self.logger.info(f"Fetched {len(posts)} posts")
         return posts
 
-    def get_post_by_bid(self, bid: str, use_proxy: bool = True) -> Post:
+    def get_post_by_bid(
+        self,
+        bid: str,
+        with_comments: bool = False,
+        comment_limit: int = 10,
+        use_proxy: bool = True,
+    ) -> Post:
         """
         Get post details by bid
 
         Args:
             bid: Post bid
+            with_comments: If True, fetch comments for the post
+            comment_limit: Maximum comments to fetch (default: 10)
             use_proxy: Whether to use proxy, default True
 
         Returns:
-            Post object
+            Post object (with comments if with_comments=True)
         """
         url = "https://m.weibo.cn/statuses/show"
         params = {"id": bid}
@@ -435,7 +457,21 @@ class WeiboClient:
         if not post_data:
             raise ParseError(f"Failed to parse post data {bid}")
 
-        return Post.from_dict(post_data)
+        post = Post.from_dict(post_data)
+
+        # Fetch comments if requested
+        if with_comments:
+            try:
+                max_pages = max(1, (comment_limit + 9) // 10)
+                comments = self.get_all_comments(
+                    post.id, max_pages=max_pages, use_proxy=use_proxy
+                )
+                post.comments = comments[:comment_limit]
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch comments: {e}")
+                post.comments = []
+
+        return post
 
     @rate_limit()
     def search_users(
@@ -478,7 +514,12 @@ class WeiboClient:
 
     @rate_limit()
     def search_posts(
-        self, query: str, page: int = 1, use_proxy: bool = True
+        self,
+        query: str,
+        page: int = 1,
+        with_comments: bool = False,
+        comment_limit: int = 10,
+        use_proxy: bool = True,
     ) -> tuple[list[Post], dict[str, Any]]:
         """
         Search for posts
@@ -486,6 +527,8 @@ class WeiboClient:
         Args:
             query: Search keyword
             page: Page number
+            with_comments: If True, fetch comments for each post
+            comment_limit: Maximum comments per post (default: 10)
             use_proxy: Whether to use proxy, default True
 
         Returns:
@@ -501,13 +544,25 @@ class WeiboClient:
         posts_data, pagination = self.parser.parse_posts(data)
         posts = [Post.from_dict(post_data) for post_data in posts_data]
 
+        # Fetch comments if requested
+        if with_comments and posts:
+            posts = self._fetch_comments_for_posts(
+                posts, comment_limit=comment_limit, use_proxy=use_proxy
+            )
+
         self.logger.info(
             f"Found {len(posts)} posts (has_more: {pagination.get('has_more', False)})"
         )
         return posts, pagination
 
     def search_posts_by_count(
-        self, query: str, count: int, max_pages: int = 50, use_proxy: bool = True
+        self,
+        query: str,
+        count: int,
+        max_pages: int = 50,
+        with_comments: bool = False,
+        comment_limit: int = 10,
+        use_proxy: bool = True,
     ) -> list[Post]:
         """
         Search for posts by keyword with automatic pagination until
@@ -518,6 +573,8 @@ class WeiboClient:
             count: Desired number of posts to retrieve
             max_pages: Maximum number of pages to fetch (safety limit),
                 default 50
+            with_comments: If True, fetch comments for each post
+            comment_limit: Maximum comments per post (default: 10)
             use_proxy: Whether to use proxy, default True
 
         Returns:
@@ -535,7 +592,11 @@ class WeiboClient:
         while len(all_posts) < count and page <= max_pages:
             try:
                 posts, pagination = self.search_posts(
-                    query, page=page, use_proxy=use_proxy
+                    query,
+                    page=page,
+                    with_comments=with_comments,
+                    comment_limit=comment_limit,
+                    use_proxy=use_proxy,
                 )
 
                 if not posts:
@@ -575,7 +636,12 @@ class WeiboClient:
         return result
 
     def search_all_posts(
-        self, query: str, max_pages: Optional[int] = None, use_proxy: bool = True
+        self,
+        query: str,
+        max_pages: Optional[int] = None,
+        with_comments: bool = False,
+        comment_limit: int = 10,
+        use_proxy: bool = True,
     ) -> list[Post]:
         """
         Search for all posts by keyword with automatic pagination until
@@ -585,6 +651,8 @@ class WeiboClient:
             query: Search keyword
             max_pages: Maximum number of pages to fetch (safety limit),
                 None for unlimited
+            with_comments: If True, fetch comments for each post
+            comment_limit: Maximum comments per post (default: 10)
             use_proxy: Whether to use proxy, default True
 
         Returns:
@@ -605,7 +673,11 @@ class WeiboClient:
 
             try:
                 posts, pagination = self.search_posts(
-                    query, page=page, use_proxy=use_proxy
+                    query,
+                    page=page,
+                    with_comments=with_comments,
+                    comment_limit=comment_limit,
+                    use_proxy=use_proxy,
                 )
 
                 if not posts:
@@ -823,3 +895,58 @@ class WeiboClient:
             f"Fetched total {len(all_comments)} comments from {pages_fetched} pages"
         )
         return all_comments
+
+    def _fetch_comments_for_posts(
+        self,
+        posts: list[Post],
+        comment_limit: int = 10,
+        use_proxy: bool = True,
+    ) -> list[Post]:
+        """
+        Fetch comments for multiple posts sequentially
+
+        Args:
+            posts: List of Post objects to fetch comments for
+            comment_limit: Maximum number of comments per post (default: 10)
+            use_proxy: Whether to use proxy for requests
+
+        Returns:
+            Same list of Post objects with comments populated
+        """
+        if not posts:
+            return posts
+
+        # Calculate pages needed (10 comments per page)
+        max_pages = max(1, (comment_limit + 9) // 10)
+
+        self.logger.info(
+            f"Fetching comments for {len(posts)} posts "
+            f"(limit: {comment_limit} per post)"
+        )
+
+        successful_count = 0
+        for i, post in enumerate(posts, 1):
+            try:
+                comments = self.get_all_comments(
+                    post.id, max_pages=max_pages, use_proxy=use_proxy
+                )
+                post.comments = comments[:comment_limit]
+                if post.comments:
+                    successful_count += 1
+                self.logger.debug(
+                    f"[{i}/{len(posts)}] Fetched {len(post.comments)} comments "
+                    f"for post {post.id}"
+                )
+            except Exception as e:
+                self.logger.warning(
+                    f"[{i}/{len(posts)}] Failed to fetch comments "
+                    f"for post {post.id}: {e}"
+                )
+                post.comments = []
+
+        self.logger.info(
+            f"Comment fetching complete: {successful_count}/{len(posts)} "
+            f"posts have comments"
+        )
+
+        return posts
