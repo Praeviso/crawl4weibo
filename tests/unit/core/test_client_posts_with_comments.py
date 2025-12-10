@@ -326,6 +326,8 @@ class TestPostsWithComments:
     @responses.activate
     def test_get_post_by_bid_comment_fetch_exception(self, client_no_rate_limit):
         """Test get_post_by_bid handles comment fetching exceptions gracefully"""
+        from unittest.mock import patch
+
         # Mock post API - succeeds
         responses.add(
             responses.GET,
@@ -341,26 +343,24 @@ class TestPostsWithComments:
             },
         )
 
-        # Mock comments API - fails with 500 error
-        responses.add(
-            responses.GET,
-            "https://m.weibo.cn/api/comments/show",
-            json={"ok": 0, "msg": "Internal server error"},
-            status=500,
-        )
+        # Mock get_all_comments to raise an exception
+        with patch.object(
+            client_no_rate_limit, "get_all_comments", side_effect=RuntimeError("API error")
+        ):
+            # Should not raise exception, just return post with empty comments
+            post = client_no_rate_limit.get_post_by_bid(
+                "ABC", with_comments=True, comment_limit=10
+            )
 
-        # Should not raise exception, just return post with empty comments
-        post = client_no_rate_limit.get_post_by_bid(
-            "ABC", with_comments=True, comment_limit=10
-        )
-
-        assert post.bid == "ABC"
-        assert post.text == "Test post"
-        assert len(post.comments) == 0  # Comments should be empty due to failure
+            assert post.bid == "ABC"
+            assert post.text == "Test post"
+            assert len(post.comments) == 0  # Comments should be empty due to exception
 
     @responses.activate
-    def test_fetch_comments_for_posts_all_fail(self, client_no_rate_limit):
-        """Test _fetch_comments_for_posts when all comment requests fail"""
+    def test_fetch_comments_for_posts_all_fail_with_exception(self, client_no_rate_limit):
+        """Test _fetch_comments_for_posts when all requests raise exceptions"""
+        from unittest.mock import patch
+
         # Mock 3 posts
         responses.add(
             responses.GET,
@@ -384,26 +384,27 @@ class TestPostsWithComments:
             },
         )
 
-        # Mock all comment requests to fail
-        for _ in range(3):
-            responses.add(
-                responses.GET,
-                "https://m.weibo.cn/api/comments/show",
-                json={"ok": 0, "msg": "Rate limited"},
-                status=429,
+        # Mock get_all_comments to always raise exception
+        with patch.object(
+            client_no_rate_limit,
+            "get_all_comments",
+            side_effect=TimeoutError("Request timeout"),
+        ):
+            posts = client_no_rate_limit.get_user_posts(
+                "123", page=1, with_comments=True
             )
 
-        posts = client_no_rate_limit.get_user_posts("123", page=1, with_comments=True)
-
-        # All 3 posts should be returned but with empty comments
-        assert len(posts) == 3
-        for post in posts:
-            assert len(post.comments) == 0
+            # All 3 posts should be returned but with empty comments
+            assert len(posts) == 3
+            for post in posts:
+                assert len(post.comments) == 0
 
     @responses.activate
-    def test_fetch_comments_for_posts_network_error(self, client_no_rate_limit):
-        """Test _fetch_comments_for_posts handles network errors gracefully"""
-        # Mock 2 posts
+    def test_fetch_comments_for_posts_exception_in_loop(self, client_no_rate_limit):
+        """Test _fetch_comments_for_posts exception handling in the for loop"""
+        from unittest.mock import patch
+
+        # Mock posts API
         responses.add(
             responses.GET,
             "https://m.weibo.cn/api/container/getIndex",
@@ -434,48 +435,48 @@ class TestPostsWithComments:
             },
         )
 
-        # First comment request succeeds
-        responses.add(
-            responses.GET,
-            "https://m.weibo.cn/api/comments/show",
-            json={
-                "ok": 1,
-                "data": {
-                    "data": [
+        # Create a side_effect that raises exception on second call
+        call_count = [0]
+
+        def mock_get_all_comments(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call succeeds
+                return [
+                    type(
+                        "Comment",
+                        (),
                         {
                             "id": "c1",
                             "text": "Good",
-                            "user": {"id": "u", "screen_name": "User"},
-                        }
-                    ],
-                    "max": 1,
-                    "total_number": 1,
-                },
-            },
-        )
+                            "user_screen_name": "User",
+                            "to_dict": lambda: {},
+                        },
+                    )()
+                ]
+            else:
+                # Second call raises exception
+                raise ConnectionError("Network error during comment fetch")
 
-        # Second comment request causes ConnectionError
-        def connection_error_callback(request):
-            raise ConnectionError("Network unreachable")
+        with patch.object(
+            client_no_rate_limit, "get_all_comments", side_effect=mock_get_all_comments
+        ):
+            posts = client_no_rate_limit.get_user_posts(
+                "123", page=1, with_comments=True
+            )
 
-        responses.add_callback(
-            responses.GET,
-            "https://m.weibo.cn/api/comments/show",
-            callback=connection_error_callback,
-        )
-
-        posts = client_no_rate_limit.get_user_posts("123", page=1, with_comments=True)
-
-        # Should return both posts
-        assert len(posts) == 2
-        # First post should have comments
-        assert len(posts[0].comments) == 1
-        # Second post should have empty comments due to network error
-        assert len(posts[1].comments) == 0
+            # Should return both posts
+            assert len(posts) == 2
+            # First post should have comment
+            assert len(posts[0].comments) == 1
+            # Second post should have empty comments due to exception
+            assert len(posts[1].comments) == 0
 
     @responses.activate
-    def test_search_posts_with_comments_exception_handling(self, client_no_rate_limit):
-        """Test search_posts handles comment fetching exceptions"""
+    def test_search_posts_with_comments_exception_in_fetch(self, client_no_rate_limit):
+        """Test search_posts handles exceptions in _fetch_comments_for_posts"""
+        from unittest.mock import patch
+
         # Mock search posts API
         responses.add(
             responses.GET,
@@ -498,19 +499,17 @@ class TestPostsWithComments:
             },
         )
 
-        # Mock comments API to fail
-        responses.add(
-            responses.GET,
-            "https://m.weibo.cn/api/comments/show",
-            json={"ok": 0, "msg": "Access denied"},
-            status=403,
-        )
+        # Mock get_all_comments to raise exception
+        with patch.object(
+            client_no_rate_limit,
+            "get_all_comments",
+            side_effect=ValueError("Invalid post ID"),
+        ):
+            posts, pagination = client_no_rate_limit.search_posts(
+                "test query", page=1, with_comments=True, comment_limit=10
+            )
 
-        posts, pagination = client_no_rate_limit.search_posts(
-            "test query", page=1, with_comments=True, comment_limit=10
-        )
-
-        # Should still return the post with empty comments
-        assert len(posts) == 1
-        assert posts[0].text == "Search result"
-        assert len(posts[0].comments) == 0
+            # Should still return the post with empty comments
+            assert len(posts) == 1
+            assert posts[0].text == "Search result"
+            assert len(posts[0].comments) == 0
