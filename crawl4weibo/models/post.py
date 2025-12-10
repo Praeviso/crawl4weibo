@@ -34,7 +34,12 @@ class Post:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Post":
-        """Create Post instance from dictionary"""
+        """
+        Create Post instance from dictionary
+
+        Returns:
+            Post: Parsed post model
+        """
         retweeted_status = None
         if data.get("retweeted_status"):
             retweeted_status = cls.from_dict(data["retweeted_status"])
@@ -62,7 +67,12 @@ class Post:
         return cls(**post_data)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert Post instance to dictionary"""
+        """
+        Convert Post instance to dictionary
+
+        Returns:
+            dict[str, Any]: Serialized post data
+        """
         result = {
             "id": self.id,
             "user_id": self.user_id,
