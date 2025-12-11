@@ -34,6 +34,9 @@ class Comment:
         """
         Create Comment instance from dictionary
         (expects flattened structure from parser)
+
+        Returns:
+            Comment: Parsed comment model
         """
         comment_data = {
             "id": str(data.get("id", "")),
@@ -56,7 +59,12 @@ class Comment:
         return cls(**comment_data)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert Comment instance to dictionary"""
+        """
+        Convert Comment instance to dictionary
+
+        Returns:
+            dict[str, Any]: Serialized comment data
+        """
         return {
             "id": self.id,
             "text": self.text,

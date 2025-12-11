@@ -34,7 +34,12 @@ class User:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "User":
-        """Create User instance from dictionary"""
+        """
+        Create User instance from dictionary
+
+        Returns:
+            User: Parsed user model
+        """
         user_data = {
             "id": str(data.get("id", "")),
             "screen_name": data.get("screen_name", ""),
@@ -58,7 +63,12 @@ class User:
         return cls(**user_data)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert User instance to dictionary"""
+        """
+        Convert User instance to dictionary
+
+        Returns:
+            dict[str, Any]: Serialized user data
+        """
         return {
             "id": self.id,
             "screen_name": self.screen_name,
