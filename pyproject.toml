@@ -88,6 +88,7 @@ addopts = ["--verbose", "--tb=short"]
 markers = [
     "unit: Unit tests that don't make external API calls",
     "integration: Integration tests that make real API calls",
+    "availability: Scheduled live availability smoke tests",
     "slow: Slow running tests",
 ]
 filterwarnings = [

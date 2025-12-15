@@ -16,9 +16,12 @@ from crawl4weibo.utils.proxy import ProxyPoolConfig
 from crawl4weibo.utils.rate_limit import RateLimitConfig
 
 
-@pytest.mark.integration
+@pytest.mark.availability
 @pytest.mark.slow
 def test_weibo_api_availability_smoke() -> None:
+    if os.getenv("RUN_WEIBO_AVAILABILITY") != "1":
+        pytest.skip("Only run in scheduled availability workflow")
+
     uid = os.getenv("WEIBO_HEALTHCHECK_UID", "2656274875")
 
     start = time.monotonic()

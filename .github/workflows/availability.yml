@@ -42,8 +42,9 @@ jobs:
 
       - name: Run live availability smoke test
         env:
+          RUN_WEIBO_AVAILABILITY: "1"
           WEIBO_HEALTHCHECK_UID: "2656274875"
           WEIBO_PROXY_API_URL: ${{ secrets.WEIBO_PROXY_API_URL }}
           WEIBO_USE_ONCE_PROXY: ${{ secrets.WEIBO_USE_ONCE_PROXY }}
         run: |
-          uv run pytest -m "integration" tests/integration/test_availability_live.py -vv
+          uv run pytest -m "availability" tests/integration/test_availability_live.py -vv
