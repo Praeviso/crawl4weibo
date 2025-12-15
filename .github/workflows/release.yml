@@ -52,7 +52,10 @@ jobs:
           
           ## Installation
           ```bash
-          pip install crawl4weibo==${{ steps.tag.outputs.tag }}
+          # Download the wheel from this release assets, then install it locally.
+          pip install ./crawl4weibo-*.whl
+          # or pip install online
+          pip install crawl4weibo
           ```
         files: |
           dist/*
@@ -60,10 +63,3 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Publish to PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        uv tool run twine upload dist/*
