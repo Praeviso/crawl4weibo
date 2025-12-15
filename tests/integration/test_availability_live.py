@@ -43,7 +43,7 @@ def test_weibo_api_availability_smoke() -> None:
 
     assert user is not None
     assert getattr(user, "id", None) == uid
-    assert getattr(user, "screen_name", "")
+    assert len(getattr(user, "screen_name", "")) > 0
 
     assert isinstance(posts, list)
     assert posts, "Expected at least one post from a high-activity test account"
