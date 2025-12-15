@@ -1,0 +1,49 @@
+name: Daily Availability
+
+on:
+  schedule:
+    # Daily at 02:30 UTC (10:30 Asia/Shanghai)
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-availability
+  cancel-in-progress: true
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: |
+          uv sync --dev
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('uv.lock') }}
+
+      - name: Install Playwright browsers
+        run: |
+          uv run playwright install --with-deps chromium
+
+      - name: Run live availability smoke test
+        env:
+          WEIBO_HEALTHCHECK_UID: "2656274875"
+          WEIBO_PROXY_API_URL: ${{ secrets.WEIBO_PROXY_API_URL }}
+          WEIBO_USE_ONCE_PROXY: ${{ secrets.WEIBO_USE_ONCE_PROXY }}
+        run: |
+          uv run pytest -m "integration" tests/integration/test_availability_live.py -vv
