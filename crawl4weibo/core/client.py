@@ -552,9 +552,7 @@ class WeiboClient:
                 education=education,
                 company=company,
             )
-            self.logger.info(
-                f"Found {total_users} users, {len(users)} after filtering"
-            )
+            self.logger.info(f"Found {total_users} users, {len(users)} after filtering")
         else:
             self.logger.info(f"Found {total_users} users")
 

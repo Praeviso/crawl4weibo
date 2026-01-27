@@ -8,18 +8,17 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Optional
 
 from ..models.user import User
 
 
-def normalize_text(value: Optional[str]) -> str:
+def normalize_text(value: str | None) -> str:
     if not value:
         return ""
     return re.sub(r"\s+", "", value).lower()
 
 
-def match_text(value: Optional[str], needle: Optional[str]) -> bool:
+def match_text(value: str | None, needle: str | None) -> bool:
     if not needle:
         return True
     if not value:
@@ -42,7 +41,7 @@ def normalize_gender(value: str) -> str:
     return gender_map.get(normalized, normalized)
 
 
-def match_gender(value: Optional[str], expected: Optional[str]) -> bool:
+def match_gender(value: str | None, expected: str | None) -> bool:
     if not expected:
         return True
     normalized_expected = normalize_gender(expected)
@@ -51,8 +50,8 @@ def match_gender(value: Optional[str], expected: Optional[str]) -> bool:
 
 
 def parse_birthday_parts(
-    birthday: Optional[str],
-) -> tuple[Optional[int], Optional[int], Optional[int]]:
+    birthday: str | None,
+) -> tuple[int | None, int | None, int | None]:
     if not birthday:
         return None, None, None
 
@@ -82,18 +81,21 @@ def parse_birthday_parts(
     return year, month, day
 
 
-def calculate_age(year: int, month: Optional[int], day: Optional[int]) -> int:
+def calculate_age(year: int, month: int | None, day: int | None) -> int:
     today = date.today()
     age = today.year - year
-    if month is not None and day is not None:
-        if (today.month, today.day) < (month, day):
-            age -= 1
+    if (
+        month is not None
+        and day is not None
+        and (today.month, today.day) < (month, day)
+    ):
+        age -= 1
     return age
 
 
 def normalize_age_range(
-    age_range: Optional[tuple[Optional[int], Optional[int]]],
-) -> Optional[tuple[Optional[int], Optional[int]]]:
+    age_range: tuple[int | None, int | None] | None,
+) -> tuple[int | None, int | None] | None:
     if age_range is None:
         return None
 
@@ -114,9 +116,9 @@ def normalize_age_range(
 
 
 def match_birthday(
-    value: Optional[str],
-    expected: Optional[str],
-    age_range: Optional[tuple[Optional[int], Optional[int]]],
+    value: str | None,
+    expected: str | None,
+    age_range: tuple[int | None, int | None] | None,
 ) -> bool:
     if expected:
         if not value:
@@ -143,12 +145,12 @@ def match_birthday(
 def filter_users(
     users: list[User],
     *,
-    gender: Optional[str] = None,
-    location: Optional[str] = None,
-    birthday: Optional[str] = None,
-    age_range: Optional[tuple[Optional[int], Optional[int]]] = None,
-    education: Optional[str] = None,
-    company: Optional[str] = None,
+    gender: str | None = None,
+    location: str | None = None,
+    birthday: str | None = None,
+    age_range: tuple[int | None, int | None] | None = None,
+    education: str | None = None,
+    company: str | None = None,
 ) -> list[User]:
     if not users:
         return []
