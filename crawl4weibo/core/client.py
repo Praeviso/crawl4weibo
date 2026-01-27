@@ -498,7 +498,7 @@ class WeiboClient:
             page: Page number
             count: Number of results per page
             use_proxy: Whether to use proxy, default True
-            gender: Filter by gender (e.g., "m", "f", "male", "female", "男", "女")
+            gender: Filter by gender (e.g., "m", "f", "male", "female")
             location: Filter by location (substring match)
             birthday: Filter by birthday (substring match)
             age_range: Filter by age range (min_age, max_age)
@@ -622,11 +622,11 @@ class WeiboClient:
             "m": "m",
             "male": "m",
             "man": "m",
-            "男": "m",
+            "\u7537": "m",
             "f": "f",
             "female": "f",
             "woman": "f",
-            "女": "f",
+            "\u5973": "f",
         }
         return gender_map.get(normalized, normalized)
 
