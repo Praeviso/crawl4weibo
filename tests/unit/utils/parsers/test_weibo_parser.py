@@ -180,6 +180,7 @@ class TestWeiboParserComments:
 
     def test_parse_comments_exception_in_iteration(self):
         """Test when exception occurs during comment list iteration"""
+
         # Create a mock object that raises exception when iterated
         class FailingIterable:
             def __iter__(self):
@@ -552,3 +553,51 @@ class TestWeiboParserComments:
         result = self.parser._parse_single_comment(comment_data)
         assert result["user_verified"] is False
         assert result["user_verified_type"] == -1
+
+
+@pytest.mark.unit
+class TestWeiboParserUserInfo:
+    """Test suite for parse_user_info"""
+
+    def setup_method(self):
+        self.parser = WeiboParser()
+
+    def test_parse_user_info_success(self):
+        response_data = {
+            "data": {
+                "userInfo": {
+                    "id": 123,
+                    "screen_name": "TestUser",
+                    "gender": "m",
+                    "description": "hello",
+                    "followers_count": 10,
+                    "follow_count": 2,
+                    "statuses_count": 3,
+                    "verified": True,
+                    "verified_reason": "reason",
+                    "profile_image_url": "avatar.jpg",
+                    "cover_image_phone": "cover.jpg",
+                    "ip_location": "Hangzhou",
+                    "birthday": "1995-02-03",
+                    "education": "Test University",
+                    "company": "Test Co",
+                    "registration_time": "2020-01-01",
+                    "sunshine_credit": "A",
+                }
+            }
+        }
+
+        info = self.parser.parse_user_info(response_data)
+
+        assert info["id"] == "123"
+        assert info["screen_name"] == "TestUser"
+        assert info["location"] == "Hangzhou"
+        assert info["birthday"] == "1995-02-03"
+        assert info["education"] == "Test University"
+        assert info["company"] == "Test Co"
+        assert info["registration_time"] == "2020-01-01"
+        assert info["sunshine_credit"] == "A"
+
+    def test_parse_user_info_invalid_format(self):
+        with pytest.raises(ParseError):
+            self.parser.parse_user_info({"data": {}})
