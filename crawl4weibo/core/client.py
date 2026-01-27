@@ -5,9 +5,7 @@ Weibo Crawler Client - Based on successfully tested code
 """
 
 import random
-import re
 import time
-from datetime import date
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -23,6 +21,7 @@ from ..utils.logger import setup_logger
 from ..utils.parser import WeiboParser
 from ..utils.proxy import ProxyPool, ProxyPoolConfig
 from ..utils.rate_limit import RateLimitConfig, rate_limit
+from ..utils.user_filters import filter_users
 
 
 class WeiboClient:
@@ -544,7 +543,7 @@ class WeiboClient:
         )
 
         if filters_present:
-            users = self._filter_users(
+            users = filter_users(
                 users,
                 gender=gender,
                 location=location,
@@ -560,167 +559,6 @@ class WeiboClient:
             self.logger.info(f"Found {total_users} users")
 
         return users
-
-    def _filter_users(
-        self,
-        users: list[User],
-        *,
-        gender: Optional[str] = None,
-        location: Optional[str] = None,
-        birthday: Optional[str] = None,
-        age_range: Optional[tuple[Optional[int], Optional[int]]] = None,
-        education: Optional[str] = None,
-        company: Optional[str] = None,
-    ) -> list[User]:
-        if not users:
-            return []
-
-        normalized_age_range = self._normalize_age_range(age_range)
-        filtered_users = []
-
-        for user in users:
-            if gender and not self._match_gender(user.gender, gender):
-                continue
-            if location and not self._match_text(user.location, location):
-                continue
-            if education and not self._match_text(user.education, education):
-                continue
-            if company and not self._match_text(user.company, company):
-                continue
-            if not self._match_birthday(
-                user.birthday, birthday, normalized_age_range
-            ):
-                continue
-            filtered_users.append(user)
-
-        return filtered_users
-
-    @staticmethod
-    def _normalize_text(value: Optional[str]) -> str:
-        if not value:
-            return ""
-        return re.sub(r"\s+", "", value).lower()
-
-    def _match_text(self, value: Optional[str], needle: Optional[str]) -> bool:
-        if not needle:
-            return True
-        if not value:
-            return False
-        return self._normalize_text(needle) in self._normalize_text(value)
-
-    def _match_gender(self, value: Optional[str], expected: Optional[str]) -> bool:
-        if not expected:
-            return True
-        normalized_expected = self._normalize_gender(expected)
-        normalized_value = self._normalize_gender(value or "")
-        return normalized_value == normalized_expected
-
-    @staticmethod
-    def _normalize_gender(value: str) -> str:
-        normalized = re.sub(r"\s+", "", value).lower()
-        gender_map = {
-            "m": "m",
-            "male": "m",
-            "man": "m",
-            "\u7537": "m",
-            "f": "f",
-            "female": "f",
-            "woman": "f",
-            "\u5973": "f",
-        }
-        return gender_map.get(normalized, normalized)
-
-    def _match_birthday(
-        self,
-        value: Optional[str],
-        expected: Optional[str],
-        age_range: Optional[tuple[Optional[int], Optional[int]]],
-    ) -> bool:
-        if expected:
-            if not value:
-                return False
-            if self._normalize_text(expected) not in self._normalize_text(value):
-                return False
-
-        if age_range:
-            if not value:
-                return False
-            year, month, day = self._parse_birthday_parts(value)
-            if not year:
-                return False
-            age = self._calculate_age(year, month, day)
-            min_age, max_age = age_range
-            if min_age is not None and age < min_age:
-                return False
-            if max_age is not None and age > max_age:
-                return False
-
-        return True
-
-    @staticmethod
-    def _parse_birthday_parts(
-        birthday: Optional[str],
-    ) -> tuple[Optional[int], Optional[int], Optional[int]]:
-        if not birthday:
-            return None, None, None
-
-        text = birthday.strip()
-        year = None
-        month = None
-        day = None
-
-        year_match = re.search(r"(19|20)\d{2}", text)
-        if year_match:
-            year = int(year_match.group())
-            remainder = text[year_match.end() :]
-            numbers = re.findall(r"\d{1,2}", remainder)
-        else:
-            numbers = re.findall(r"\d{1,2}", text)
-
-        if numbers:
-            month = int(numbers[0])
-        if len(numbers) > 1:
-            day = int(numbers[1])
-
-        if month is not None and not (1 <= month <= 12):
-            month = None
-        if day is not None and not (1 <= day <= 31):
-            day = None
-
-        return year, month, day
-
-    @staticmethod
-    def _calculate_age(
-        year: int, month: Optional[int], day: Optional[int]
-    ) -> int:
-        today = date.today()
-        age = today.year - year
-        if month is not None and day is not None:
-            if (today.month, today.day) < (month, day):
-                age -= 1
-        return age
-
-    @staticmethod
-    def _normalize_age_range(
-        age_range: Optional[tuple[Optional[int], Optional[int]]]
-    ) -> Optional[tuple[Optional[int], Optional[int]]]:
-        if age_range is None:
-            return None
-
-        if not isinstance(age_range, (tuple, list)) or len(age_range) != 2:
-            raise ValueError("age_range must be a tuple/list of (min_age, max_age)")
-
-        min_age, max_age = age_range
-        if min_age is None and max_age is None:
-            return None
-        if min_age is not None and min_age < 0:
-            raise ValueError("age_range min_age must be >= 0")
-        if max_age is not None and max_age < 0:
-            raise ValueError("age_range max_age must be >= 0")
-        if min_age is not None and max_age is not None and min_age > max_age:
-            raise ValueError("age_range min_age must be <= max_age")
-
-        return min_age, max_age
 
     @rate_limit()
     def search_posts(
@@ -958,7 +796,7 @@ class WeiboClient:
         Download images from multiple posts
 
         Args:
-            posts: List of Post objects to download images from
+            posts: List of Post objects
             download_dir: Custom download directory (optional)
             subdir: Subdirectory name for organizing downloads
 
