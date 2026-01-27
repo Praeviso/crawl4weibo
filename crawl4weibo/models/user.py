@@ -40,6 +40,7 @@ class User:
         Returns:
             User: Parsed user model
         """
+
         def _coalesce_str(*values: Any) -> str:
             for value in values:
                 if isinstance(value, str) and value.strip():
