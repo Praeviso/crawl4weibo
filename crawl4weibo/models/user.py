@@ -54,6 +54,13 @@ class User:
         if posts_count in (None, ""):
             posts_count = data.get("statuses_count", 0)
 
+        registration_time = data.get("registration_time")
+        registration_value = (
+            registration_time
+            if isinstance(registration_time, datetime)
+            else _coalesce_str(data.get("registration_time"), data.get("register_time"))
+        )
+
         user_data = {
             "id": str(data.get("id", "")),
             "screen_name": data.get("screen_name", ""),
@@ -80,9 +87,7 @@ class User:
                 data.get("education"), data.get("education_background")
             ),
             "company": _coalesce_str(data.get("company"), data.get("company_name")),
-            "registration_time": _coalesce_str(
-                data.get("registration_time"), data.get("register_time")
-            ),
+            "registration_time": registration_value,
             "sunshine_credit": _coalesce_str(
                 data.get("sunshine_credit"), data.get("sunshine")
             ),
