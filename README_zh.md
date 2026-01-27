@@ -56,8 +56,8 @@ posts = client.get_user_posts(uid, page=1, expand=True)
 for post in posts[:3]:
     print(f"{post.text[:50]}... - 点赞: {post.attitudes_count}")
 
-# 搜索用户
-users = client.search_users("新浪")
+# 搜索用户（筛选条件为本地过滤）
+users = client.search_users("新浪", gender="f", location="北京")
 for user in users[:3]:
     print(f"{user.screen_name} - 粉丝: {user.followers_count}")
 
@@ -180,7 +180,7 @@ posts = client.get_user_posts("2656274875", page=1)  # 使用代理
 - `get_post_by_bid(bid)`：获取单条微博的完整正文与多媒体信息
 - `get_comments(post_id, page=1)`：获取指定微博的评论（返回评论列表和分页信息）
 - `get_all_comments(post_id, max_pages=None)`：自动翻页获取全部评论
-- `search_users(query, page=1, count=10)` / `search_posts(query, page=1)`：关键词搜索
+- `search_users(query, page=1, count=10, *, gender=None, location=None, birthday=None, age_range=None, education=None, company=None)` / `search_posts(query, page=1)`：关键词搜索（用户筛选为本地过滤）
 - `download_post_images(post, ...)`、`download_user_posts_images(uid, pages=2, ...)`：下载图像素材
 - **统一异常**：`NetworkError`、`RateLimitError`、`UserNotFoundError` 等，便于业务兜底
 

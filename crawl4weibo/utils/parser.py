@@ -34,10 +34,18 @@ class WeiboParser:
 
             user_info = response_data["data"]["userInfo"]
 
+            location = user_info.get("location") or user_info.get("ip_location") or ""
+            birthday = user_info.get("birthday") or ""
+            education = user_info.get("education") or ""
+            company = user_info.get("company") or ""
+            registration_time = user_info.get("registration_time") or ""
+            sunshine_credit = user_info.get("sunshine_credit") or ""
+
             return {
                 "id": str(user_info.get("id", "")),
                 "screen_name": user_info.get("screen_name", ""),
                 "gender": user_info.get("gender", ""),
+                "location": location,
                 "description": user_info.get("description", ""),
                 "followers_count": user_info.get("followers_count", 0),
                 "following_count": user_info.get("follow_count", 0),
@@ -46,6 +54,11 @@ class WeiboParser:
                 "verified_reason": user_info.get("verified_reason", ""),
                 "avatar_url": user_info.get("profile_image_url", ""),
                 "cover_image_url": user_info.get("cover_image_phone", ""),
+                "birthday": birthday,
+                "education": education,
+                "company": company,
+                "registration_time": registration_time,
+                "sunshine_credit": sunshine_credit,
             }
         except Exception as e:
             self.logger.error(f"Failed to parse user info: {e}")

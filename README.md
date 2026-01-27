@@ -56,8 +56,8 @@ posts = client.get_user_posts(uid, page=1, expand=True)
 for post in posts[:3]:
     print(f"{post.text[:50]}... - Likes: {post.attitudes_count}")
 
-# Search users
-users = client.search_users("新浪")
+# Search users (filters are applied locally based on available fields)
+users = client.search_users("新浪", gender="f", location="北京")
 for user in users[:3]:
     print(f"{user.screen_name} - Followers: {user.followers_count}")
 
@@ -180,7 +180,7 @@ posts = client.get_user_posts("2656274875", page=1)  # Uses proxy
 - `get_post_by_bid(bid)`: Get full content and media info for a single post
 - `get_comments(post_id, page=1)`: Get comments for a specific post (returns comments list and pagination info)
 - `get_all_comments(post_id, max_pages=None)`: Get all comments with automatic pagination
-- `search_users(query, page=1, count=10)` / `search_posts(query, page=1)`: Keyword search
+- `search_users(query, page=1, count=10, *, gender=None, location=None, birthday=None, age_range=None, education=None, company=None)` / `search_posts(query, page=1)`: Keyword search (user filters are applied locally)
 - `download_post_images(post, ...)`, `download_user_posts_images(uid, pages=2, ...)`: Download image assets
 - **Unified Exceptions**: `NetworkError`, `RateLimitError`, `UserNotFoundError`, etc., for business-level error handling
 

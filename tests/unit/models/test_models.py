@@ -33,6 +33,34 @@ class TestUser:
         assert user.followers_count == 1000
         assert user.posts_count == 500
 
+    def test_user_from_dict_alternative_keys(self):
+        """Test User creation from alternative keys"""
+        data = {
+            "id": "123456",
+            "screen_name": "AltUser",
+            "follow_count": 12,
+            "statuses_count": 34,
+            "profile_image_url": "http://avatar.example",
+            "cover_image_phone": "http://cover.example",
+            "ip_location": "Shanghai",
+            "birthday_text": "1995-02-03",
+            "education_background": "Test University",
+            "company_name": "Test Co",
+            "register_time": "2020-01-01",
+            "sunshine": "A",
+        }
+        user = User.from_dict(data)
+        assert user.following_count == 12
+        assert user.posts_count == 34
+        assert user.avatar_url == "http://avatar.example"
+        assert user.cover_image_url == "http://cover.example"
+        assert user.location == "Shanghai"
+        assert user.birthday == "1995-02-03"
+        assert user.education == "Test University"
+        assert user.company == "Test Co"
+        assert user.registration_time == "2020-01-01"
+        assert user.sunshine_credit == "A"
+
     def test_user_to_dict(self):
         """Test User to dictionary conversion"""
         user = User(
