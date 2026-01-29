@@ -1,6 +1,7 @@
 """Tests for WeiboClient cookie initialization"""
 
 import pytest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from crawl4weibo import WeiboClient
@@ -47,6 +48,37 @@ class TestClientCookieInitialization:
 
         call_kwargs = mock_fetcher_class.call_args.kwargs
         assert call_kwargs["use_browser"] is False
+
+    def test_login_cookies_force_browser_mode(self):
+        """Test login_cookies forces browser mode when disabled"""
+        client = WeiboClient(
+            use_browser_cookies=False,
+            login_cookies=True,
+            auto_fetch_cookies=False,
+        )
+
+        assert client.use_browser_cookies is True
+
+    def test_login_cookies_default_storage_path(self):
+        """Test login_cookies sets default storage path"""
+        client = WeiboClient(login_cookies=True, auto_fetch_cookies=False)
+        expected = Path.home() / ".crawl4weibo" / "weibo_storage_state.json"
+
+        assert client.cookie_storage_path == expected
+
+    def test_login_cookies_keep_headless_with_state(self, tmp_path):
+        """Test login_cookies keeps headless when storage state exists"""
+        storage_path = tmp_path / "state.json"
+        storage_path.write_text("{}", encoding="utf-8")
+
+        client = WeiboClient(
+            login_cookies=True,
+            cookie_storage_path=storage_path,
+            browser_headless=True,
+            auto_fetch_cookies=False,
+        )
+
+        assert client.browser_headless is True
 
     @patch("crawl4weibo.core.client.CookieFetcher")
     def test_login_cookies_enable_headful_browser(self, mock_fetcher_class, tmp_path):
@@ -264,6 +296,48 @@ class TestRefreshCookies:
         # Verify new cookies are in session
         for name, value in new_cookies.items():
             assert client.session.cookies.get(name) == value
+
+    @patch("crawl4weibo.core.client.CookieFetcher")
+    def test_refresh_cookies_forces_browser_for_login(self, mock_fetcher_class):
+        """Test refresh forces browser mode when login_cookies enabled"""
+        mock_fetcher = MagicMock()
+        mock_fetcher.fetch_cookies.return_value = {}
+        mock_fetcher_class.return_value = mock_fetcher
+
+        client = WeiboClient(auto_fetch_cookies=False)
+        client.refresh_cookies(use_browser=False, login_cookies=True)
+
+        call_kwargs = mock_fetcher_class.call_args.kwargs
+        assert call_kwargs["use_browser"] is True
+        assert call_kwargs["require_login"] is True
+
+    @patch("crawl4weibo.core.client.CookieFetcher")
+    def test_refresh_cookies_uses_client_storage_path(
+        self, mock_fetcher_class, tmp_path
+    ):
+        """Test refresh uses stored storage path when not provided"""
+        mock_fetcher = MagicMock()
+        mock_fetcher.fetch_cookies.return_value = {}
+        mock_fetcher_class.return_value = mock_fetcher
+
+        storage_path = tmp_path / "state.json"
+        storage_path.write_text("{}", encoding="utf-8")
+        client = WeiboClient(
+            login_cookies=True,
+            cookie_storage_path=storage_path,
+            auto_fetch_cookies=False,
+        )
+
+        client.refresh_cookies(
+            use_browser=True,
+            login_cookies=True,
+            cookie_storage_path=None,
+            browser_headless=True,
+        )
+
+        call_kwargs = mock_fetcher_class.call_args.kwargs
+        assert call_kwargs["storage_state_path"] == storage_path
+        assert call_kwargs["headless"] is True
 
 
 @pytest.mark.unit

@@ -5,7 +5,8 @@ Unit tests for cookie_fetcher module
 """
 
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 import responses
@@ -13,6 +14,7 @@ import responses
 from crawl4weibo.utils.cookie_fetcher import (
     CookieFetcher,
     _is_event_loop_running,
+    fetch_cookies_browser,
     fetch_cookies_simple,
 )
 
@@ -161,6 +163,153 @@ class TestLoginFlow:
         page.goto.assert_awaited_once()
         assert page.goto.call_args.args[0] == "https://m.weibo.cn/"
 
+    def test_resolve_storage_state_path(self, tmp_path):
+        """Test resolve storage state path behavior"""
+        storage_path = tmp_path / "state.json"
+        fetcher_missing = CookieFetcher(
+            use_browser=True, storage_state_path=storage_path
+        )
+        assert fetcher_missing._resolve_storage_state_path() is None
+
+        storage_path.write_text("{}", encoding="utf-8")
+        fetcher_existing = CookieFetcher(
+            use_browser=True, storage_state_path=storage_path
+        )
+        assert fetcher_existing._resolve_storage_state_path() == str(storage_path)
+
+    def test_persist_storage_state_sync_calls_secure(self, tmp_path):
+        """Test sync storage persistence triggers security hardening"""
+        storage_path = tmp_path / "state.json"
+        fetcher = CookieFetcher(use_browser=True, storage_state_path=storage_path)
+        context = Mock()
+
+        def write_state(path):
+            Path(path).write_text("{}", encoding="utf-8")
+
+        context.storage_state.side_effect = write_state
+        with patch.object(fetcher, "_secure_storage_state_file") as secure_mock:
+            fetcher._persist_storage_state_sync(context)
+
+        context.storage_state.assert_called_once_with(path=str(storage_path))
+        secure_mock.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_persist_storage_state_async_calls_secure(self, tmp_path):
+        """Test async storage persistence triggers security hardening"""
+        storage_path = tmp_path / "state.json"
+        fetcher = CookieFetcher(use_browser=True, storage_state_path=storage_path)
+        context = Mock()
+        context.storage_state = AsyncMock()
+
+        with patch.object(fetcher, "_secure_storage_state_file") as secure_mock:
+            await fetcher._persist_storage_state_async(context)
+
+        context.storage_state.assert_awaited_once_with(path=str(storage_path))
+        secure_mock.assert_called_once()
+
+    def test_secure_storage_state_file_best_effort(self, tmp_path):
+        """Test secure storage state tolerates chmod errors"""
+        storage_path = tmp_path / "state.json"
+        storage_path.write_text("{}", encoding="utf-8")
+        fetcher = CookieFetcher(use_browser=True, storage_state_path=storage_path)
+
+        with patch("pathlib.Path.chmod", side_effect=OSError):
+            fetcher._secure_storage_state_file()
+
+    def test_secure_storage_state_file_no_path(self):
+        """Test secure storage state no-op when path missing"""
+        fetcher = CookieFetcher(use_browser=True)
+        fetcher._secure_storage_state_file()
+
+    def test_fetch_with_browser_sync_persists_login_state(self):
+        """Test sync fetch persists storage state when logged in"""
+        fetcher = CookieFetcher(use_browser=True, require_login=True)
+
+        mock_page = Mock()
+        mock_context = Mock()
+        mock_browser = Mock()
+        mock_playwright = Mock()
+
+        mock_context.cookies.return_value = [{"name": "SUB", "value": "token"}]
+        mock_context.new_page.return_value = mock_page
+        mock_browser.new_context.return_value = mock_context
+        mock_playwright.chromium.launch.return_value = mock_browser
+
+        with patch("builtins.__import__") as mock_import, patch.object(
+            fetcher, "_ensure_login_sync"
+        ), patch.object(fetcher, "_persist_storage_state_sync") as persist_mock:
+
+            def custom_import(name, *args, **kwargs):
+                if name == "playwright.sync_api":
+                    module = Mock()
+                    module.sync_playwright = Mock(
+                        return_value=Mock(
+                            __enter__=Mock(return_value=mock_playwright),
+                            __exit__=Mock(return_value=None),
+                        )
+                    )
+                    return module
+                return __import__(name, *args, **kwargs)
+
+            mock_import.side_effect = custom_import
+            cookies = fetcher._fetch_with_browser_sync()
+
+            assert cookies["SUB"] == "token"
+            persist_mock.assert_called_once_with(mock_context)
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_browser_async_persists_login_state(self):
+        """Test async fetch persists storage state when logged in"""
+        fetcher = CookieFetcher(use_browser=True, require_login=True)
+
+        mock_page = Mock()
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock()
+
+        mock_context = Mock()
+        mock_context.cookies = AsyncMock(return_value=[{"name": "SUB", "value": "t"}])
+        mock_context.new_page = AsyncMock(return_value=mock_page)
+        mock_context.set_extra_http_headers = AsyncMock()
+        mock_context.close = AsyncMock()
+
+        mock_browser = Mock()
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        mock_browser.close = AsyncMock()
+
+        mock_chromium = Mock()
+        mock_chromium.launch = AsyncMock(return_value=mock_browser)
+
+        mock_playwright_instance = Mock()
+        mock_playwright_instance.chromium = mock_chromium
+
+        class MockAsyncPlaywright:
+            async def __aenter__(self):
+                return mock_playwright_instance
+
+            async def __aexit__(self, *args):
+                return None
+
+        original_import = __import__
+        with patch("builtins.__import__") as mock_import, patch.object(
+            fetcher, "_ensure_login_async", new=AsyncMock()
+        ), patch.object(
+            fetcher, "_persist_storage_state_async", new=AsyncMock()
+        ) as persist_mock:
+
+            def custom_import(name, *args, **kwargs):
+                if name == "playwright.async_api":
+                    module = Mock()
+                    module.async_playwright = lambda: MockAsyncPlaywright()
+                    return module
+                return original_import(name, *args, **kwargs)
+
+            mock_import.side_effect = custom_import
+
+            cookies = await fetcher._fetch_with_browser_async(timeout=30)
+
+            assert cookies["SUB"] == "t"
+            persist_mock.assert_awaited_once_with(mock_context)
+
     @responses.activate
     def test_fetch_with_requests_success(self):
         """Test successful cookie fetching with requests"""
@@ -293,6 +442,34 @@ class TestConvenienceFunctions:
 
         # Verify custom UA was used
         assert responses.calls[0].request.headers["User-Agent"] == custom_ua
+
+    @patch("crawl4weibo.utils.cookie_fetcher.CookieFetcher")
+    def test_fetch_cookies_browser_forwards_args(self, mock_fetcher_class, tmp_path):
+        """Test fetch_cookies_browser forwards args to CookieFetcher"""
+        mock_fetcher = MagicMock()
+        mock_fetcher.fetch_cookies.return_value = {"a": "b"}
+        mock_fetcher_class.return_value = mock_fetcher
+
+        storage_path = tmp_path / "state.json"
+        cookies = fetch_cookies_browser(
+            user_agent="Test UA",
+            timeout=12,
+            require_login=True,
+            login_timeout=34,
+            headless=False,
+            storage_state_path=storage_path,
+        )
+
+        assert cookies == {"a": "b"}
+        mock_fetcher_class.assert_called_once_with(
+            user_agent="Test UA",
+            use_browser=True,
+            require_login=True,
+            login_timeout=34,
+            headless=False,
+            storage_state_path=storage_path,
+        )
+        mock_fetcher.fetch_cookies.assert_called_once_with(timeout=12)
 
 
 class TestErrorHandling:
