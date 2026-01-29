@@ -290,11 +290,17 @@ class TestLoginFlow:
                 return None
 
         original_import = __import__
+        async def ensure_noop(*args, **kwargs):
+            return None
+
+        persist_calls = []
+
+        async def persist_stub(context):
+            persist_calls.append(context)
+
         with patch("builtins.__import__") as mock_import, patch.object(
-            fetcher, "_ensure_login_async", new=AsyncMock()
-        ), patch.object(
-            fetcher, "_persist_storage_state_async", new=AsyncMock()
-        ) as persist_mock:
+            fetcher, "_ensure_login_async", new=ensure_noop
+        ), patch.object(fetcher, "_persist_storage_state_async", new=persist_stub):
 
             def custom_import(name, *args, **kwargs):
                 if name == "playwright.async_api":
@@ -308,7 +314,7 @@ class TestLoginFlow:
             cookies = await fetcher._fetch_with_browser_async(timeout=30)
 
             assert cookies["SUB"] == "t"
-            persist_mock.assert_awaited_once_with(mock_context)
+            assert persist_calls == [mock_context]
 
     @responses.activate
     def test_fetch_with_requests_success(self):
