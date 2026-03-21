@@ -7,6 +7,8 @@ Supports both simple requests-based and browser-based cookie acquisition
 
 import asyncio
 import contextlib
+import os
+import platform
 import random
 import time
 from pathlib import Path
@@ -31,6 +33,44 @@ def _is_event_loop_running() -> bool:
 def _has_login_cookie(cookies: list[dict[str, str]]) -> bool:
     """Check if any cookie indicates an authenticated Weibo session"""
     return any(cookie.get("name") in LOGIN_COOKIE_NAMES for cookie in cookies)
+
+
+def _discover_chrome_cdp_endpoint() -> Optional[str]:
+    """读取 Chrome 的 DevToolsActivePort 文件，发现已运行的 Chrome 调试端点。
+    支持 Chrome 146+ 的原生远程调试（approval mode）。"""
+    home = Path.home()
+    system = platform.system()
+
+    if system == "Darwin":
+        candidates = [
+            home / "Library" / "Application Support" / "Google" / "Chrome",
+            home / "Library" / "Application Support" / "Google" / "Chrome Canary",
+        ]
+    elif system == "Windows":
+        local_app = Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local"))
+        candidates = [
+            local_app / "Google" / "Chrome" / "User Data",
+        ]
+    else:
+        candidates = [
+            home / ".config" / "google-chrome",
+            home / ".config" / "google-chrome-beta",
+        ]
+
+    for user_data_dir in candidates:
+        port_file = user_data_dir / "DevToolsActivePort"
+        if not port_file.exists():
+            continue
+        try:
+            content = port_file.read_text().strip()
+            lines = content.split("\n")
+            port = int(lines[0].strip())
+            if port > 0:
+                return f"http://127.0.0.1:{port}"
+        except (ValueError, IndexError, OSError):
+            continue
+
+    return None
 
 
 class CookieFetcher:
@@ -271,14 +311,24 @@ class CookieFetcher:
         cookies_dict = {}
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=self.headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                ],
-            )
+            connected_via_cdp = False
+            endpoint = _discover_chrome_cdp_endpoint()
+            if endpoint:
+                try:
+                    browser = p.chromium.connect_over_cdp(endpoint)
+                    connected_via_cdp = True
+                except Exception:
+                    pass
+
+            if not connected_via_cdp:
+                browser = p.chromium.launch(
+                    headless=self.headless,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                    ],
+                )
 
             context = browser.new_context(
                 user_agent=self.user_agent,
@@ -334,7 +384,8 @@ class CookieFetcher:
                     self._persist_storage_state_sync(context)
             finally:
                 context.close()
-                browser.close()
+                if not connected_via_cdp:
+                    browser.close()
 
         return cookies_dict
 
@@ -363,14 +414,24 @@ class CookieFetcher:
         cookies_dict = {}
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=self.headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                ],
-            )
+            connected_via_cdp = False
+            endpoint = _discover_chrome_cdp_endpoint()
+            if endpoint:
+                try:
+                    browser = await p.chromium.connect_over_cdp(endpoint)
+                    connected_via_cdp = True
+                except Exception:
+                    pass
+
+            if not connected_via_cdp:
+                browser = await p.chromium.launch(
+                    headless=self.headless,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                    ],
+                )
 
             context = await browser.new_context(
                 user_agent=self.user_agent,
@@ -426,7 +487,8 @@ class CookieFetcher:
                     await self._persist_storage_state_async(context)
             finally:
                 await context.close()
-                await browser.close()
+                if not connected_via_cdp:
+                    await browser.close()
 
         return cookies_dict
 
