@@ -219,6 +219,7 @@ class WeiboParser:
                 "attitudes_count": mblog.get("attitudes_count", 0),
                 "pic_urls": self._extract_pic_urls(mblog),
                 "video_url": self._extract_video_url(mblog),
+                "video_urls": self._extract_video_urls(mblog),
                 "is_original": not mblog.get("retweeted_status"),
                 "location": mblog.get("geo", {}).get("name", ""),
                 "topic_ids": self._extract_topics(mblog.get("text", "")),
@@ -268,11 +269,44 @@ class WeiboParser:
         return pic_urls
 
     def _extract_video_url(self, mblog: dict[str, Any]) -> str:
+        """Extract the best quality video URL from post data."""
         if "page_info" in mblog and mblog["page_info"].get("type") == "video":
             media_info = mblog["page_info"].get("media_info", {})
-            return media_info.get("stream_url", "")
+            for key in (
+                "mp4_720p_mp4",
+                "stream_url_hd",
+                "mp4_sd_url",
+                "stream_url",
+            ):
+                url = media_info.get(key, "")
+                if url:
+                    return url
 
         return ""
+
+    def _extract_video_urls(self, mblog: dict[str, Any]) -> dict[str, str]:
+        """Extract all available video quality URLs from post data.
+
+        Returns:
+            dict[str, str]: Mapping of quality name to video URL,
+                e.g. {"720p": "https://...", "sd": "https://..."}
+        """
+        if "page_info" not in mblog or mblog["page_info"].get("type") != "video":
+            return {}
+
+        media_info = mblog["page_info"].get("media_info", {})
+        quality_keys = {
+            "720p": "mp4_720p_mp4",
+            "sd": "mp4_sd_url",
+            "stream_hd": "stream_url_hd",
+            "stream": "stream_url",
+        }
+        result: dict[str, str] = {}
+        for quality_name, key in quality_keys.items():
+            url = media_info.get(key, "")
+            if url:
+                result[quality_name] = url
+        return result
 
     def _extract_topics(self, text: str) -> list[str]:
         if not text:

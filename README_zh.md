@@ -18,6 +18,7 @@ Crawl4Weibo 是一个开箱即用的微博爬虫 Python 库，模拟移动端请
 - **支持微博长文展开**：关键词搜索、用户列表抓取与批量分页
 - **评论抓取功能**：获取微博评论，支持自动翻页和嵌套回复
 - **提供图像下载工具**：支持单条、批量和整页下载，并带重复文件检查
+- **提供视频下载工具**：支持多画质选择（720p/SD/HD）、流式下载、重试与代理
 - **统一日志与错误类型**：便于快速定位网络、解析或鉴权问题
 
 ## 安装
@@ -147,6 +148,47 @@ results = client.download_user_posts_images(
 python examples/download_images_example.py
 ```
 
+## 视频下载示例
+```python
+from crawl4weibo import WeiboClient
+
+client = WeiboClient()
+
+# 方式1: 下载单个帖子的视频
+post = client.get_post_by_bid("Q6FyDtbQc")
+if post.video_url:
+    print(f"可用画质: {list(post.video_urls.keys())}")
+    result = client.download_post_video(
+        post,
+        download_dir="./downloads",
+        subdir="single_video"
+    )
+    if result:
+        print(f"已下载到: {result}")
+
+# 方式2: 批量下载用户帖子的视频
+posts = client.get_user_posts("2656274875", page=1)
+results = client.download_posts_videos(
+    posts,
+    download_dir="./downloads"
+)
+
+# 方式3: 下载用户多页帖子的视频
+results = client.download_user_posts_videos(
+    uid="2656274875",
+    pages=2,
+    download_dir="./downloads"
+)
+stats = client.video_downloader.get_download_stats(results)
+print(f"已下载 {stats['successful']}/{stats['total']} 个视频")
+```
+更多用法请参考 [`examples/download_videos_example.py`](examples/download_videos_example.py)。
+
+**运行示例：**
+```bash
+python examples/download_videos_example.py
+```
+
 ## 代理池配置示例
 ```python
 from crawl4weibo import WeiboClient, ProxyPoolConfig
@@ -204,6 +246,7 @@ posts = client.get_user_posts("2656274875", page=1)  # 使用代理
 - `get_all_comments(post_id, max_pages=None)`：自动翻页获取全部评论
 - `search_users(query, page=1, count=10, *, gender=None, location=None, birthday=None, age_range=None, education=None, company=None)` / `search_posts(query, page=1)`：关键词搜索（用户筛选为本地过滤）
 - `download_post_images(post, ...)`、`download_user_posts_images(uid, pages=2, ...)`：下载图像素材
+- `download_post_video(post, ...)`、`download_posts_videos(posts, ...)`、`download_user_posts_videos(uid, pages=2, ...)`：下载视频素材，支持多画质
 - **统一异常**：`NetworkError`、`RateLimitError`、`UserNotFoundError` 等，便于业务兜底
 
 ## CLI

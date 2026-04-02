@@ -21,7 +21,7 @@ from .mcp.server import create_mcp_server
 from .models.comment import Comment
 from .models.post import Post
 from .models.user import User
-from .utils.downloader import ImageDownloader
+from .utils.downloader import ImageDownloader, VideoDownloader
 from .utils.proxy import ProxyPoolConfig
 from .utils.rate_limit import RateLimitConfig
 
@@ -31,6 +31,7 @@ __all__ = [
     "Post",
     "Comment",
     "ImageDownloader",
+    "VideoDownloader",
     "ProxyPoolConfig",
     "RateLimitConfig",
     "CrawlError",

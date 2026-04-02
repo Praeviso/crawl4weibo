@@ -27,6 +27,7 @@ class Post:
     attitudes_count: int = 0
     pic_urls: list[str] = field(default_factory=list)
     video_url: str = ""
+    video_urls: dict[str, str] = field(default_factory=dict)
     is_original: bool = True
     retweeted_status: Optional["Post"] = None
     location: str = ""
@@ -62,6 +63,7 @@ class Post:
             "attitudes_count": data.get("attitudes_count", 0),
             "pic_urls": data.get("pic_urls", []),
             "video_url": data.get("video_url", ""),
+            "video_urls": data.get("video_urls", {}),
             "is_original": data.get("is_original", True),
             "retweeted_status": retweeted_status,
             "location": data.get("location", ""),
@@ -91,6 +93,7 @@ class Post:
             "attitudes_count": self.attitudes_count,
             "pic_urls": self.pic_urls,
             "video_url": self.video_url,
+            "video_urls": self.video_urls,
             "is_original": self.is_original,
             "location": self.location,
             "topic_ids": self.topic_ids,

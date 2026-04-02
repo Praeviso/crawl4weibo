@@ -18,6 +18,7 @@ Crawl4Weibo is a ready-to-use Weibo (微博) web scraper Python library that sim
 - **Long Text Expansion**: Supports expanding truncated long posts, keyword search, user list fetching, and batch pagination
 - **Comment Scraping**: Fetch post comments with automatic pagination and support for nested replies
 - **Image Download Utilities**: Download images from single posts, batches, or entire pages with duplicate file detection
+- **Video Download Utilities**: Download videos with multi-quality selection (720p/SD/HD), streaming download, retry and proxy support
 - **Unified Logging & Error Types**: Quickly locate network, parsing, or authentication issues
 
 ## Installation
@@ -149,6 +150,47 @@ For more usage details, see [`examples/download_images_example.py`](examples/dow
 python examples/download_images_example.py
 ```
 
+## Video Download Example
+```python
+from crawl4weibo import WeiboClient
+
+client = WeiboClient()
+
+# Method 1: Download video from a single post
+post = client.get_post_by_bid("Q6FyDtbQc")
+if post.video_url:
+    print(f"Available qualities: {list(post.video_urls.keys())}")
+    result = client.download_post_video(
+        post,
+        download_dir="./downloads",
+        subdir="single_video"
+    )
+    if result:
+        print(f"Downloaded to: {result}")
+
+# Method 2: Batch download videos from user posts
+posts = client.get_user_posts("2656274875", page=1)
+results = client.download_posts_videos(
+    posts,
+    download_dir="./downloads"
+)
+
+# Method 3: Download videos from multiple pages of user posts
+results = client.download_user_posts_videos(
+    uid="2656274875",
+    pages=2,
+    download_dir="./downloads"
+)
+stats = client.video_downloader.get_download_stats(results)
+print(f"Downloaded {stats['successful']}/{stats['total']} videos")
+```
+For more usage details, see [`examples/download_videos_example.py`](examples/download_videos_example.py).
+
+**Run the example:**
+```bash
+python examples/download_videos_example.py
+```
+
 ## Proxy Pool Configuration Example
 ```python
 from crawl4weibo import WeiboClient, ProxyPoolConfig
@@ -206,6 +248,7 @@ posts = client.get_user_posts("2656274875", page=1)  # Uses proxy
 - `get_all_comments(post_id, max_pages=None)`: Get all comments with automatic pagination
 - `search_users(query, page=1, count=10, *, gender=None, location=None, birthday=None, age_range=None, education=None, company=None)` / `search_posts(query, page=1)`: Keyword search (user filters are applied locally)
 - `download_post_images(post, ...)`, `download_user_posts_images(uid, pages=2, ...)`: Download image assets
+- `download_post_video(post, ...)`, `download_posts_videos(posts, ...)`, `download_user_posts_videos(uid, pages=2, ...)`: Download video assets with multi-quality support
 - **Unified Exceptions**: `NetworkError`, `RateLimitError`, `UserNotFoundError`, etc., for business-level error handling
 
 ## CLI

@@ -16,7 +16,7 @@ from ..models.comment import Comment
 from ..models.post import Post
 from ..models.user import User
 from ..utils.cookie_fetcher import LOGIN_COOKIE_NAMES, CookieFetcher
-from ..utils.downloader import ImageDownloader
+from ..utils.downloader import ImageDownloader, VideoDownloader
 from ..utils.logger import setup_logger
 from ..utils.parser import WeiboParser
 from ..utils.proxy import ProxyPool, ProxyPoolConfig
@@ -145,6 +145,11 @@ class WeiboClient:
         self.downloader = ImageDownloader(
             session=self.session,
             download_dir="./weibo_images",
+            proxy_pool=self.proxy_pool,
+        )
+        self.video_downloader = VideoDownloader(
+            session=self.session,
+            download_dir="./weibo_videos",
             proxy_pool=self.proxy_pool,
         )
 
@@ -591,6 +596,7 @@ class WeiboClient:
                     post.text = long_post.text
                     post.pic_urls = long_post.pic_urls
                     post.video_url = long_post.video_url
+                    post.video_urls = long_post.video_urls
                 except Exception as e:
                     self.logger.warning(f"Failed to expand long post {post.bid}: {e}")
 
@@ -1022,6 +1028,96 @@ class WeiboClient:
         subdir = f"user_{uid}"
 
         return self.download_posts_images(all_posts, download_dir, subdir)
+
+    def download_post_video(
+        self,
+        post: Post,
+        download_dir: str | None = None,
+        subdir: str | None = None,
+    ) -> str | None:
+        """
+        Download video from a single post
+
+        Args:
+            post: Post object containing video URL
+            download_dir: Custom download directory (optional)
+            subdir: Subdirectory name for organizing downloads
+
+        Returns:
+            Path to downloaded file if successful, None otherwise
+        """
+        if download_dir:
+            self.video_downloader.download_dir = Path(download_dir)
+            self.video_downloader.download_dir.mkdir(parents=True, exist_ok=True)
+
+        if not post.video_url:
+            self.logger.info(f"Post {post.id} has no video to download")
+            return None
+
+        return self.video_downloader.download_post_video(post, subdir)
+
+    def download_posts_videos(
+        self,
+        posts: list[Post],
+        download_dir: str | None = None,
+        subdir: str | None = None,
+    ) -> dict[str, str | None]:
+        """
+        Download videos from multiple posts
+
+        Args:
+            posts: List of Post objects
+            download_dir: Custom download directory (optional)
+            subdir: Subdirectory name for organizing downloads
+
+        Returns:
+            Dictionary mapping post IDs to downloaded file paths
+        """
+        if download_dir:
+            self.video_downloader.download_dir = Path(download_dir)
+            self.video_downloader.download_dir.mkdir(parents=True, exist_ok=True)
+
+        posts_with_video = [post for post in posts if post.video_url]
+        if not posts_with_video:
+            self.logger.info("No posts with videos found")
+            return {}
+
+        self.logger.info(
+            f"Found {len(posts_with_video)} posts with videos "
+            f"out of {len(posts)} total posts"
+        )
+        return self.video_downloader.download_posts_videos(posts_with_video, subdir)
+
+    def download_user_posts_videos(
+        self,
+        uid: str,
+        pages: int = 1,
+        download_dir: str | None = None,
+        expand_long_text: bool = False,
+    ) -> dict[str, str | None]:
+        """
+        Download videos from user's posts
+
+        Args:
+            uid: User ID
+            pages: Number of pages to fetch
+            download_dir: Custom download directory (optional)
+            expand_long_text: Whether to expand long text posts
+
+        Returns:
+            Dictionary mapping post IDs to downloaded file paths
+        """
+        all_posts: list[Post] = []
+
+        for page in range(1, pages + 1):
+            posts = self.get_user_posts(uid, page=page, expand=expand_long_text)
+            if not posts:
+                break
+            all_posts.extend(posts)
+
+        subdir = f"user_{uid}"
+
+        return self.download_posts_videos(all_posts, download_dir, subdir)
 
     @rate_limit()
     def get_comments(
