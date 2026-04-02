@@ -62,6 +62,8 @@ class TestVideoDownloader:
             mock_response.headers = {"content-type": "video/mp4"}
             mock_response.iter_content.return_value = [b"fake_video_data"]
             mock_response.raise_for_status.return_value = None
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
             mock_get.return_value = mock_response
 
             url = "https://example.com/test.mp4"
@@ -82,6 +84,8 @@ class TestVideoDownloader:
             mock_response.headers = {"content-type": "application/octet-stream"}
             mock_response.iter_content.return_value = [b"fake_video_data"]
             mock_response.raise_for_status.return_value = None
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
             mock_get.return_value = mock_response
 
             url = "https://example.com/test.mp4"
@@ -99,6 +103,8 @@ class TestVideoDownloader:
             mock_response.status_code = 200
             mock_response.headers = {"content-type": "text/html"}
             mock_response.raise_for_status.return_value = None
+            mock_response.__enter__ = Mock(return_value=mock_response)
+            mock_response.__exit__ = Mock(return_value=False)
             mock_get.return_value = mock_response
 
             url = "https://example.com/notvideo.txt"
@@ -299,8 +305,8 @@ class TestVideoUrlExtraction:
         result = parser._extract_video_urls(mblog)
         assert result == {
             "720p": "https://example.com/720p.mp4",
-            "sd": "https://example.com/sd.mp4",
             "stream_hd": "https://example.com/stream_hd.mp4",
+            "sd": "https://example.com/sd.mp4",
             "stream": "https://example.com/stream.mp4",
         }
 

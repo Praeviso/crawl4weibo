@@ -391,30 +391,43 @@ class VideoDownloader:
                                 f"Downloading with proxy: {proxies.get('http', 'N/A')}"
                             )
 
-                    response = self.session.get(
+                    with self.session.get(
                         url, timeout=60, stream=True, proxies=proxies
-                    )
-                    response.raise_for_status()
+                    ) as response:
+                        response.raise_for_status()
 
-                    content_type = response.headers.get("content-type", "")
-                    if not any(
-                        content_type.startswith(ct) for ct in self.VALID_CONTENT_TYPES
-                    ):
-                        self.logger.warning(
-                            f"URL does not return video content "
-                            f"(got {content_type}): {url}"
-                        )
-                        return None
+                        content_type = response.headers.get("content-type", "")
+                        if not any(
+                            content_type.startswith(ct)
+                            for ct in self.VALID_CONTENT_TYPES
+                        ):
+                            self.logger.warning(
+                                f"URL does not return video content "
+                                f"(got {content_type}): {url}"
+                            )
+                            return None
 
-                    with open(save_path, "wb") as f:
-                        for chunk in response.iter_content(chunk_size=self.chunk_size):
-                            if chunk:
-                                f.write(chunk)
+                        with open(save_path, "wb") as f:
+                            for chunk in response.iter_content(
+                                chunk_size=self.chunk_size
+                            ):
+                                if chunk:
+                                    f.write(chunk)
 
                     self.logger.info(f"Downloaded video: {save_path}")
                     return str(save_path)
 
                 except requests.exceptions.RequestException as e:
+                    # Remove partial file to avoid false "already exists"
+                    if save_path.exists():
+                        try:
+                            save_path.unlink()
+                        except OSError as cleanup_err:
+                            self.logger.warning(
+                                f"Failed to remove incomplete file "
+                                f"{save_path}: {cleanup_err}"
+                            )
+
                     if attempt < self.max_retries:
                         if using_proxy:
                             delay = random.uniform(0.5, 1.5)

@@ -157,6 +157,7 @@ client = WeiboClient()
 # 方式1: 下载单个帖子的视频
 post = client.get_post_by_bid("Q6FyDtbQc")
 if post.video_url:
+    # video_urls 的键: "720p", "stream_hd", "sd", "stream"（视可用画质而定）
     print(f"可用画质: {list(post.video_urls.keys())}")
     result = client.download_post_video(
         post,

@@ -297,8 +297,8 @@ class WeiboParser:
         media_info = mblog["page_info"].get("media_info", {})
         quality_keys = {
             "720p": "mp4_720p_mp4",
-            "sd": "mp4_sd_url",
             "stream_hd": "stream_url_hd",
+            "sd": "mp4_sd_url",
             "stream": "stream_url",
         }
         result: dict[str, str] = {}

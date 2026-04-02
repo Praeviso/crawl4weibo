@@ -159,6 +159,7 @@ client = WeiboClient()
 # Method 1: Download video from a single post
 post = client.get_post_by_bid("Q6FyDtbQc")
 if post.video_url:
+    # video_urls keys: "720p", "stream_hd", "sd", "stream" (when available)
     print(f"Available qualities: {list(post.video_urls.keys())}")
     result = client.download_post_video(
         post,
