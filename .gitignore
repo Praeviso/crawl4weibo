@@ -161,6 +161,8 @@ example_downloads/
 # Security reports
 bandit-report.json
 safety-report.json
+pip-audit-report.json
+requirements-audit.txt
 
 # Coverage reports
 cover/
